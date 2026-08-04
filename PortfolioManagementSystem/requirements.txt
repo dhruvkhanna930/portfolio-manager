@@ -1,3 +1,7 @@
+Django==6.0.7
+django-allauth==65.18.0
+python-dotenv==0.19.0
+alpha-vantage==2.3.1
 accelerate==1.13.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
