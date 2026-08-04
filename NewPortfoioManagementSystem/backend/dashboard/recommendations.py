@@ -1,0 +1,210 @@
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics.pairwise import cosine_similarity
+from alpha_vantage.fundamentaldata import FundamentalData
+from django.conf import settings
+import random
+from .models import StockHolding
+
+
+def get_alphavantage_key():
+    """Get a random AlphaVantage API key from settings"""
+    alphavantage_keys = [
+        settings.ALPHAVANTAGE_KEY1,
+        settings.ALPHAVANTAGE_KEY2,
+        settings.ALPHAVANTAGE_KEY3,
+        settings.ALPHAVANTAGE_KEY4,
+        settings.ALPHAVANTAGE_KEY5,
+        settings.ALPHAVANTAGE_KEY6,
+        settings.ALPHAVANTAGE_KEY7,
+    ]
+    return random.choice(alphavantage_keys)
+
+
+def get_stock_fundamentals(symbol):
+    """Fetch fundamental data for a stock from AlphaVantage API"""
+    try:
+        fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
+        data, meta_data = fd.get_company_overview(symbol=symbol)
+
+        return {
+            'symbol': symbol,
+            'name': data.get('Name', ''),
+            'sector': data.get('Sector', ''),
+            'industry': data.get('Industry', ''),
+            'pe_ratio': float(data.get('PERatio', 0)) if data.get('PERatio') not in ['None', 'N/A', ''] else 0,
+            'beta': float(data.get('Beta', 0)) if data.get('Beta') not in ['None', 'N/A', ''] else 0,
+            'market_cap': float(data.get('MarketCapitalization', 0)) if data.get('MarketCapitalization') not in ['None', 'N/A', ''] else 0,
+            'dividend_yield': float(data.get('DividendYield', 0)) if data.get('DividendYield') not in ['None', 'N/A', ''] else 0,
+            'profit_margin': float(data.get('ProfitMargin', 0)) if data.get('ProfitMargin') not in ['None', 'N/A', ''] else 0,
+            'return_on_equity': float(data.get('ReturnOnEquityTTM', 0)) if data.get('ReturnOnEquityTTM') not in ['None', 'N/A', ''] else 0,
+            'fifty_two_week_high': float(data.get('52WeekHigh', 0)) if data.get('52WeekHigh') not in ['None', 'N/A', ''] else 0,
+            'fifty_two_week_low': float(data.get('52WeekLow', 0)) if data.get('52WeekLow') not in ['None', 'N/A', ''] else 0,
+        }
+    except Exception as e:
+        print(f"Error fetching fundamentals for {symbol}: {str(e)}")
+        return None
+
+
+def build_stock_features_dataframe(symbols_list):
+    """Build a feature dataframe for a list of stock symbols"""
+    stocks_data = []
+    valid_symbols = []
+
+    for symbol in symbols_list:
+        fundamentals = get_stock_fundamentals(symbol)
+        if fundamentals:
+            stocks_data.append(fundamentals)
+            valid_symbols.append(symbol)
+
+    if not stocks_data:
+        return None, None
+
+    df = pd.DataFrame(stocks_data)
+    return df, valid_symbols
+
+
+def compute_stock_similarity(stocks_df):
+    """Compute similarity matrix between stocks based on fundamentals"""
+    feature_cols = ['pe_ratio', 'beta', 'dividend_yield', 'profit_margin', 'return_on_equity']
+
+    X = stocks_df[feature_cols].fillna(0).values
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    similarity_matrix = cosine_similarity(X_scaled)
+
+    return similarity_matrix
+
+
+def get_sector_similarity(stock1_sector, stock2_sector):
+    """Get similarity score based on sector match"""
+    if stock1_sector == stock2_sector:
+        return 0.3
+    return 0
+
+
+def recommend_stocks(portfolio, num_recommendations=10):
+    """Recommend stocks based on user's portfolio"""
+    try:
+        holding_companies = StockHolding.objects.filter(portfolio=portfolio)
+
+        if not holding_companies.exists():
+            return []
+
+        user_stock_symbols = [h.company_symbol for h in holding_companies]
+        user_sectors = set([h.sector for h in holding_companies if h.sector])
+
+        stocks_df, valid_symbols = build_stock_features_dataframe(user_stock_symbols)
+
+        if stocks_df is None:
+            return []
+
+        stocks_df.set_index('symbol', inplace=True)
+        similarity_matrix = compute_stock_similarity(stocks_df)
+
+        recommendation_scores = {}
+
+        for i, symbol in enumerate(valid_symbols):
+            for j, compare_symbol in enumerate(valid_symbols):
+                if i != j:
+                    if symbol not in recommendation_scores:
+                        recommendation_scores[symbol] = 0
+                    recommendation_scores[symbol] += similarity_matrix[i][j]
+
+        sorted_recommendations = sorted(
+            recommendation_scores.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:num_recommendations]
+
+        recommendations = []
+        for symbol, score in sorted_recommendations:
+            fundamentals = get_stock_fundamentals(symbol)
+            if fundamentals:
+                fundamentals['similarity_score'] = round(score, 3)
+                recommendations.append(fundamentals)
+
+        return recommendations
+
+    except Exception as e:
+        print(f"Error in recommend_stocks: {str(e)}")
+        return []
+
+
+def recommend_complementary_stocks(portfolio, num_recommendations=10):
+    """Recommend stocks that complement the portfolio (different sectors, lower beta, etc.)"""
+    try:
+        holding_companies = StockHolding.objects.filter(portfolio=portfolio)
+
+        if not holding_companies.exists():
+            return []
+
+        user_sectors = [h.sector for h in holding_companies if h.sector]
+        portfolio_avg_beta = 0
+        portfolio_avg_pe = 0
+
+        stocks_df, valid_symbols = build_stock_features_dataframe([h.company_symbol for h in holding_companies])
+
+        if stocks_df is not None:
+            portfolio_avg_beta = stocks_df['beta'].mean()
+            portfolio_avg_pe = stocks_df['pe_ratio'].mean()
+
+        complementary_stocks = []
+
+        stock_universe = get_popular_stocks_list()
+
+        for symbol in stock_universe:
+            if symbol not in valid_symbols:
+                fundamentals = get_stock_fundamentals(symbol)
+                if fundamentals:
+                    complementary_score = 0
+
+                    if fundamentals['sector'] not in user_sectors:
+                        complementary_score += 3
+
+                    if fundamentals['beta'] > 0 and portfolio_avg_beta > 0:
+                        if fundamentals['beta'] < portfolio_avg_beta:
+                            complementary_score += 2
+
+                    if fundamentals['dividend_yield'] > 0:
+                        complementary_score += 1
+
+                    fundamentals['complementary_score'] = complementary_score
+                    complementary_stocks.append(fundamentals)
+
+        sorted_complementary = sorted(
+            complementary_stocks,
+            key=lambda x: x['complementary_score'],
+            reverse=True
+        )[:num_recommendations]
+
+        return sorted_complementary
+
+    except Exception as e:
+        print(f"Error in recommend_complementary_stocks: {str(e)}")
+        return []
+
+
+def get_popular_stocks_list():
+    """Return a list of popular stocks to recommend from"""
+    popular_stocks = [
+        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'V', 'WMT',
+        'JNJ', 'PG', 'KO', 'PEP', 'MCD', 'DIS', 'NFLX', 'INTC', 'AMD', 'CRM',
+        'ADBE', 'CSCO', 'ORCL', 'IBM', 'TM', 'BMW', 'F', 'GM', 'BABA', 'TSM',
+        'XOM', 'CVX', 'MRK', 'ABBV', 'PFE', 'LLY', 'UNH', 'AbbVie', 'BA', 'GE'
+    ]
+    return popular_stocks
+
+
+def get_portfolio_recommendations(portfolio):
+    """Get both similar and complementary stock recommendations for a portfolio"""
+    similar_stocks = recommend_stocks(portfolio, num_recommendations=8)
+    complementary_stocks = recommend_complementary_stocks(portfolio, num_recommendations=8)
+
+    return {
+        'similar_stocks': similar_stocks,
+        'complementary_stocks': complementary_stocks
+    }

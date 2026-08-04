@@ -8,19 +8,27 @@ def risk_profile(request):
   if request.method == "GET":
     return render(request, 'riskprofile/risk-profile.html')
   elif request.method == "POST":
-    q1_option = request.POST['q1-option']
-    q2_option = request.POST['q2-option']
-    q3_option = request.POST['q3-option']
-    q4_option = request.POST['q4-option']
-    q5_option = request.POST['q5-option']
-    q6_option = request.POST['q6-option']
-    q7_option = request.POST['q7-option']
-    q8_option = request.POST['q8-option']
-    q9_option = request.POST['q9-option']
-    q10_option = request.POST['q10-option']
-    q11_option = request.POST['q11-option']
-    q12_option = request.POST['q12-option']
-    q13_option = request.POST['q13-option']
+    required_fields = ['q1-option', 'q2-option', 'q3-option', 'q4-option', 'q5-option',
+                      'q6-option', 'q7-option', 'q8-option', 'q9-option', 'q10-option',
+                      'q11-option', 'q12-option', 'q13-option']
+
+    missing_fields = [field for field in required_fields if field not in request.POST]
+    if missing_fields:
+      return HttpResponse(f'Error: Please complete all questions. Missing: {", ".join(missing_fields)}', status=400)
+
+    q1_option = request.POST.get('q1-option')
+    q2_option = request.POST.get('q2-option')
+    q3_option = request.POST.get('q3-option')
+    q4_option = request.POST.get('q4-option')
+    q5_option = request.POST.get('q5-option')
+    q6_option = request.POST.get('q6-option')
+    q7_option = request.POST.get('q7-option')
+    q8_option = request.POST.get('q8-option')
+    q9_option = request.POST.get('q9-option')
+    q10_option = request.POST.get('q10-option')
+    q11_option = request.POST.get('q11-option')
+    q12_option = request.POST.get('q12-option')
+    q13_option = request.POST.get('q13-option')
 
     print(q1_option, q2_option, q3_option, q4_option, q5_option, q6_option, q7_option, q8_option, q9_option, q10_option, q11_option, q12_option, q13_option)
 
