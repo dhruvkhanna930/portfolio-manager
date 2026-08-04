@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from .models import Portfolio, StockHolding
+from .portfolio_summary import build_portfolio_summary
 from riskprofile.models import RiskProfile
 from riskprofile.views import risk_profile
 
@@ -150,6 +151,22 @@ def get_financials(request):
     return JsonResponse({ "financials": financials })
   except Exception as e:
     return JsonResponse({"Error": str(e)})
+
+
+@login_required
+def portfolio_summary(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+  except Portfolio.DoesNotExist:
+    portfolio = Portfolio.objects.create(user=request.user)
+
+  holdings = list(StockHolding.objects.filter(portfolio=portfolio))
+  risk_profile = RiskProfile.objects.filter(user=request.user).first()
+  summary = build_portfolio_summary(
+    holdings,
+    risk_profile_category=risk_profile.category if risk_profile else "Balanced"
+  )
+  return JsonResponse(summary)
 
 
 def add_holding(request):
