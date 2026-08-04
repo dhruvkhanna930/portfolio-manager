@@ -1322,7 +1322,7 @@
         <!-- Donut Charts -->
         <script>
             function loadRecommendations() {
-                fetch('/dashboard/get-recommendations')
+                fetch('/get-recommendations')
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Failed to fetch recommendations');
