@@ -668,7 +668,48 @@
         document.getElementById('tip-text').textContent = tips[currentStep - 1] || 'Answer each question honestly for best results.';
       }
 
-      document.addEventListener('DOMContentLoaded', updateProgress);
+      function validateAllQuestions() {
+        const requiredQuestions = ['q1-option', 'q2-option', 'q3-option', 'q4-option', 'q5-option',
+                                   'q6-option', 'q7-option', 'q8-option', 'q9-option', 'q10-option',
+                                   'q11-option', 'q12-option', 'q13-option'];
+        const unanswered = [];
+
+        requiredQuestions.forEach(qName => {
+          const checked = document.querySelector(`input[name="${qName}"]:checked`);
+          if (!checked) {
+            unanswered.push(qName.replace('-option', '').toUpperCase());
+          }
+        });
+
+        if (unanswered.length > 0) {
+          alert(`Please answer all questions before submitting.\nUnanswered: ${unanswered.join(', ')}`);
+          return false;
+        }
+        return true;
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        updateProgress();
+        const submitBtn = document.querySelector('.submit-button');
+        if (submitBtn) {
+          submitBtn.addEventListener('click', function(e) {
+            if (!validateAllQuestions()) {
+              e.preventDefault();
+              return false;
+            }
+          });
+        }
+        const form = document.querySelector('form');
+        if (form) {
+          form.addEventListener('submit', function(e) {
+            if (!validateAllQuestions()) {
+              e.preventDefault();
+              return false;
+            }
+          });
+        }
+      });
+
       document.querySelectorAll('.button').forEach(btn => {
         btn.addEventListener('click', () => {
           setTimeout(updateProgress, 100);

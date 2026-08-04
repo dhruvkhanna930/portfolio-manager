@@ -10,4 +10,5 @@ urlpatterns = [
     path('portfolio-summary', views.portfolio_summary, name="portfolio-summary"),
     path('get-portfolio-insights', views.get_portfolio_insights, name="get-portfolio-insights"),
     path('backtesting', views.backtesting, name="backtesting"),
+    path('get-recommendations', views.get_recommendations, name="get-recommendations"),
 ]

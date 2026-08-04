@@ -801,67 +801,28 @@
                                 <div class="col-lg-12">
                                     <div class="card">
                                         <div class="card-body">
-                                            <h4 class="card-title mb-4">Short-Term Recommendations</h4>
-                                            <div class="table-responsive">
-                                                <table class="table table-centered table-nowrap mb-0">
+                                            <h4 class="card-title mb-4">Similar Stocks (Based on Your Portfolio)</h4>
+                                            <div id="similar-stocks-loading" class="text-center" style="padding: 20px;">
+                                                <p>Loading recommendations...</p>
+                                            </div>
+                                            <div class="table-responsive" id="similar-stocks-container" style="display:none;">
+                                                <table class="table table-centered table-nowrap mb-0" id="similar-stocks-table">
                                                     <thead class="thead-light">
                                                         <tr>
+                                                            <th>Stock Symbol</th>
                                                             <th>Company Name</th>
-                                                            <th>Last Trading Price (LTP)</th>
-                                                            <th>Entry</th>
-                                                            <th>Target</th>
-                                                            <th>Stop Loss</th>
-                                                            <th>Call</th>
-                                                            <th>Details</th>
+                                                            <th>Sector</th>
+                                                            <th>P/E Ratio</th>
+                                                            <th>Beta</th>
+                                                            <th>Similarity Score</th>
+                                                            <th>Dividend Yield</th>
+                                                            <th>Action</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Discovery Communications INC. (DISCA)</td>
-                                                            <td>$ 41.81</td>
-                                                            <td>$ 42.10</td>
-                                                            <td>$ 53.40</td>
-                                                            <td>$ 39.50</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">Buy</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">FISERV INC. (FISV)</td>
-                                                            <td>$ 126.96</td>
-                                                            <td>$ 128.00</td>
-                                                            <td>$ 143.30</td>
-                                                            <td>$ 110.50</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">Buy</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Devon Energy Corporation (DVN)</td>
-                                                            <td>$ 22.04</td>
-                                                            <td>$ 22.10</td>
-                                                            <td>$ 25.61</td>
-                                                            <td>$ 21.30</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">Buy</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
+                                                    <tbody id="similar-stocks-tbody">
                                                     </tbody>
                                                 </table>
                                             </div>
-                                            <!-- end table-responsive -->
                                         </div>
                                     </div>
                                 </div>
@@ -872,63 +833,28 @@
                                 <div class="col-lg-12">
                                     <div class="card">
                                         <div class="card-body">
-                                            <h4 class="card-title mb-4">Mid-Term Recommendations</h4>
-                                            <div class="table-responsive">
-                                                <table class="table table-centered table-nowrap mb-0">
+                                            <h4 class="card-title mb-4">Complementary Stocks (Diversification)</h4>
+                                            <div id="complementary-stocks-loading" class="text-center" style="padding: 20px;">
+                                                <p>Loading diversification suggestions...</p>
+                                            </div>
+                                            <div class="table-responsive" id="complementary-stocks-container" style="display:none;">
+                                                <table class="table table-centered table-nowrap mb-0" id="complementary-stocks-table">
                                                     <thead class="thead-light">
                                                         <tr>
+                                                            <th>Stock Symbol</th>
                                                             <th>Company Name</th>
-                                                            <th>Last Trading Price (LTP)</th>
-                                                            <th>Entry</th>
-                                                            <th>Target</th>
-                                                            <th>Holding Period</th>
-                                                            <th>Details</th>
+                                                            <th>Sector</th>
+                                                            <th>Industry</th>
+                                                            <th>P/E Ratio</th>
+                                                            <th>Beta</th>
+                                                            <th>Dividend Yield</th>
+                                                            <th>Action</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Bank First Corp. (BFC)</td>
-                                                            <td>$ 72.28</td>
-                                                            <td>$ 75.00</td>
-                                                            <td>$ 98.50</td>
-                                                            <td>~ 1 year</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">ACNB Corp. (ACNB)</td>
-                                                            <td>$ 29.13</td>
-                                                            <td>$ 30.50</td>
-                                                            <td>$ 40.30</td>
-                                                            <td>~ 1.5 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Axos Financials INC. (AX)</td>
-                                                            <td>$ 48.53</td>
-                                                            <td>$ 50.20</td>
-                                                            <td>$ 62.75</td>
-                                                            <td>~ 2 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
+                                                    <tbody id="complementary-stocks-tbody">
                                                     </tbody>
                                                 </table>
                                             </div>
-                                            <!-- end table-responsive -->
                                         </div>
                                     </div>
                                 </div>
@@ -939,63 +865,16 @@
                                 <div class="col-lg-12">
                                     <div class="card">
                                         <div class="card-body">
-                                            <h4 class="card-title mb-4">Long-Term Recommendations</h4>
-                                            <div class="table-responsive">
-                                                <table class="table table-centered table-nowrap mb-0">
-                                                    <thead class="thead-light">
-                                                        <tr>
-                                                            <th>Company Name</th>
-                                                            <th>Last Trading Price (LTP)</th>
-                                                            <th>Fundamental Strength</th>
-                                                            <th>Expected Returns (CAGR)</th>
-                                                            <th>Holding Period</th>
-                                                            <th>Details</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Molina Healthcare INC. (MOL)</td>
-                                                            <td>$ 240.98</td>
-                                                            <td class="font-weight-bold">Strong</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">+ 12.29 %</td>
-                                                            <td>~ 4 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Public Storage (PSA)</td>
-                                                            <td>$ 257.88</td>
-                                                            <td class="font-weight-bold">Good</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">+ 11.23 %</td>
-                                                            <td>~ 5 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Best Buy Co. (BBY)</td>
-                                                            <td>$ 112.48</td>
-                                                            <td class="font-weight-bold">Very Strong</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">+ 19.96 %</td>
-                                                            <td>~ 3 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                            <h4 class="card-title mb-4">Recommendation Tips</h4>
+                                            <div style="padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                                                <ul style="margin: 0; padding-left: 20px;">
+                                                    <li><strong>Similar Stocks:</strong> These stocks have similar financial metrics (P/E ratio, Beta, Dividend Yield) to your current holdings, indicating similar risk/return profiles.</li>
+                                                    <li><strong>Complementary Stocks:</strong> These stocks are from different sectors and have different characteristics than your current holdings, providing better portfolio diversification.</li>
+                                                    <li>Recommendations are generated using advanced similarity analysis based on fundamental financial data from AlphaVantage API.</li>
+                                                    <li>Higher similarity scores indicate stronger match with your portfolio characteristics.</li>
+                                                    <li>Always conduct your own research before making investment decisions.</li>
+                                                </ul>
                                             </div>
-                                            <!-- end table-responsive -->
                                         </div>
                                     </div>
                                 </div>
@@ -1432,12 +1311,109 @@
                 if (tabName === "portfolio-insights") {
                     getPortfolioInsights();
                 }
+
+                if (tabName === "recommendations") {
+                    loadRecommendations();
+                }
             }
             document.getElementById("defaultOpen").click();
         </script>
 
         <!-- Donut Charts -->
         <script>
+            function loadRecommendations() {
+                fetch('/dashboard/get-recommendations')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch recommendations');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        displaySimilarStocks(data.similar_stocks);
+                        displayComplementaryStocks(data.complementary_stocks);
+                    })
+                    .catch(error => {
+                        console.error('Error loading recommendations:', error);
+                        document.getElementById('similar-stocks-loading').innerHTML = '<p style="color: red;">Error loading recommendations. Please try again later.</p>';
+                        document.getElementById('complementary-stocks-loading').innerHTML = '<p style="color: red;">Error loading recommendations. Please try again later.</p>';
+                    });
+            }
+
+            function displaySimilarStocks(stocks) {
+                const tbody = document.getElementById('similar-stocks-tbody');
+                const container = document.getElementById('similar-stocks-container');
+                const loading = document.getElementById('similar-stocks-loading');
+
+                tbody.innerHTML = '';
+
+                if (!stocks || stocks.length === 0) {
+                    loading.innerHTML = '<p>No similar stocks found. Add stocks to your portfolio to get recommendations.</p>';
+                    return;
+                }
+
+                stocks.forEach(stock => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="text-body font-weight-bold">${stock.symbol}</td>
+                        <td>${stock.name}</td>
+                        <td>${stock.sector || 'N/A'}</td>
+                        <td>${parseFloat(stock.pe_ratio).toFixed(2)}</td>
+                        <td>${parseFloat(stock.beta).toFixed(3)}</td>
+                        <td class="font-weight-bold" style="color:#50a5f1;">${parseFloat(stock.similarity_score).toFixed(3)}</td>
+                        <td>${parseFloat(stock.dividend_yield * 100).toFixed(2)}%</td>
+                        <td>
+                            <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light" onclick="addStockModal('${stock.symbol}', '${stock.name}')">
+                                Add Stock
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                loading.style.display = 'none';
+                container.style.display = 'block';
+            }
+
+            function displayComplementaryStocks(stocks) {
+                const tbody = document.getElementById('complementary-stocks-tbody');
+                const container = document.getElementById('complementary-stocks-container');
+                const loading = document.getElementById('complementary-stocks-loading');
+
+                tbody.innerHTML = '';
+
+                if (!stocks || stocks.length === 0) {
+                    loading.innerHTML = '<p>No complementary stocks found.</p>';
+                    return;
+                }
+
+                stocks.forEach(stock => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="text-body font-weight-bold">${stock.symbol}</td>
+                        <td>${stock.name}</td>
+                        <td>${stock.sector || 'N/A'}</td>
+                        <td>${stock.industry || 'N/A'}</td>
+                        <td>${parseFloat(stock.pe_ratio).toFixed(2)}</td>
+                        <td>${parseFloat(stock.beta).toFixed(3)}</td>
+                        <td>${parseFloat(stock.dividend_yield * 100).toFixed(2)}%</td>
+                        <td>
+                            <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light" onclick="addStockModal('${stock.symbol}', '${stock.name}')">
+                                Add Stock
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                loading.style.display = 'none';
+                container.style.display = 'block';
+            }
+
+            function addStockModal(symbol, name) {
+                alert('Add Stock feature: ' + symbol + ' (' + name + '). This would open the Add Stock modal.');
+            }
+
             function generateRandomColors(length) {
                 var colors = [];
                 for (let i = 0; i < length; i++) {

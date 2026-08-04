@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from .models import Portfolio, StockHolding
 from .portfolio_summary import build_portfolio_summary
+from .recommendations import get_portfolio_recommendations
 from riskprofile.models import RiskProfile
 from riskprofile.views import risk_profile
 
@@ -223,31 +224,55 @@ def send_company_list(request):
 
 
 def fetch_news():
-  query_params = {
-    "country": "us",
-    "category": "business",
-    "sortBy": "top",
-    "apiKey": settings.NEWSAPI_KEY
-  }
-  main_url = "https://newsapi.org/v2/top-headlines"
-  # fetching data in json format
-  res = requests.get(main_url, params=query_params)
-  print(res)
-  open_bbc_page = res.json()
-  print(open_bbc_page)
-  # getting all articles in a string article
-  article = open_bbc_page["articles"]
+  try:
+    query_params = {
+      "country": "us",
+      "category": "business",
+      "sortBy": "top",
+      "apiKey": settings.NEWSAPI_KEY
+    }
+    main_url = "https://newsapi.org/v2/top-headlines"
+    res = requests.get(main_url, params=query_params, timeout=5)
 
-  results = []
-  for ar in article:
-    results.append([ar["title"], ar["description"], ar["url"]])
-  # Make news as 2 at a time to show on dashboard
-  news = list(zip(results[::2], results[1::2]))
+    if res.status_code != 200:
+      print(f"NewsAPI error: {res.status_code}")
+      return []
 
-  if len(results) % 2:
+    open_bbc_page = res.json()
+
+    if "articles" not in open_bbc_page:
+      print(f"NewsAPI response missing 'articles': {open_bbc_page}")
+      return []
+
+    article = open_bbc_page["articles"]
+
+    if not article:
+      return []
+
+    results = []
+    for ar in article:
+      if ar.get("title") and ar.get("url"):
+        results.append([ar.get("title", ""), ar.get("description", ""), ar.get("url", "")])
+
+    if not results:
+      return []
+
+    news = list(zip(results[::2], results[1::2]))
+
+    if len(results) % 2:
       news.append((results[-1], None))
 
-  return news
+    return news
+
+  except requests.exceptions.Timeout:
+    print("NewsAPI request timed out")
+    return []
+  except requests.exceptions.RequestException as e:
+    print(f"NewsAPI request error: {str(e)}")
+    return []
+  except Exception as e:
+    print(f"Error fetching news: {str(e)}")
+    return []
 
 
 def backtesting(request):
@@ -257,3 +282,15 @@ def backtesting(request):
   except sp.CalledProcessError:
     output = 'No such command'
   return HttpResponse("Success")
+
+
+@login_required
+def get_recommendations(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+    recommendations = get_portfolio_recommendations(portfolio)
+    return JsonResponse(recommendations)
+  except Portfolio.DoesNotExist:
+    return JsonResponse({"Error": "Portfolio not found"})
+  except Exception as e:
+    return JsonResponse({"Error": str(e)})
