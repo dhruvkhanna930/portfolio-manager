@@ -28,6 +28,10 @@ def get_stock_fundamentals(symbol):
         fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
         data, meta_data = fd.get_company_overview(symbol=symbol)
 
+        if not data or 'Symbol' not in data:
+            print(f"No data returned for {symbol}")
+            return None
+
         return {
             'symbol': symbol,
             'name': data.get('Name', ''),
@@ -92,15 +96,19 @@ def recommend_stocks(portfolio, num_recommendations=10):
         holding_companies = StockHolding.objects.filter(portfolio=portfolio)
 
         if not holding_companies.exists():
+            print("No holdings in portfolio")
             return []
 
         user_stock_symbols = [h.company_symbol for h in holding_companies]
-        user_sectors = set([h.sector for h in holding_companies if h.sector])
+        print(f"Portfolio stocks: {user_stock_symbols}")
 
         stocks_df, valid_symbols = build_stock_features_dataframe(user_stock_symbols)
 
-        if stocks_df is None:
+        if stocks_df is None or len(valid_symbols) == 0:
+            print(f"Could not fetch data for portfolio stocks")
             return []
+
+        print(f"Successfully fetched data for: {valid_symbols}")
 
         stocks_df.set_index('symbol', inplace=True)
         similarity_matrix = compute_stock_similarity(stocks_df)
@@ -127,10 +135,13 @@ def recommend_stocks(portfolio, num_recommendations=10):
                 fundamentals['similarity_score'] = round(score, 3)
                 recommendations.append(fundamentals)
 
+        print(f"Returning {len(recommendations)} similar stock recommendations")
         return recommendations
 
     except Exception as e:
         print(f"Error in recommend_stocks: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -140,21 +151,25 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10):
         holding_companies = StockHolding.objects.filter(portfolio=portfolio)
 
         if not holding_companies.exists():
+            print("No holdings for complementary recommendations")
             return []
 
         user_sectors = [h.sector for h in holding_companies if h.sector]
         portfolio_avg_beta = 0
         portfolio_avg_pe = 0
 
+        print(f"User sectors: {user_sectors}")
+
         stocks_df, valid_symbols = build_stock_features_dataframe([h.company_symbol for h in holding_companies])
 
         if stocks_df is not None:
             portfolio_avg_beta = stocks_df['beta'].mean()
             portfolio_avg_pe = stocks_df['pe_ratio'].mean()
+            print(f"Portfolio avg beta: {portfolio_avg_beta}, avg PE: {portfolio_avg_pe}")
 
         complementary_stocks = []
-
         stock_universe = get_popular_stocks_list()
+        print(f"Searching {len(stock_universe)} stocks from universe")
 
         for symbol in stock_universe:
             if symbol not in valid_symbols:
@@ -172,8 +187,9 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10):
                     if fundamentals['dividend_yield'] > 0:
                         complementary_score += 1
 
-                    fundamentals['complementary_score'] = complementary_score
-                    complementary_stocks.append(fundamentals)
+                    if complementary_score > 0:
+                        fundamentals['complementary_score'] = complementary_score
+                        complementary_stocks.append(fundamentals)
 
         sorted_complementary = sorted(
             complementary_stocks,
@@ -181,10 +197,13 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10):
             reverse=True
         )[:num_recommendations]
 
+        print(f"Returning {len(sorted_complementary)} complementary stock recommendations")
         return sorted_complementary
 
     except Exception as e:
         print(f"Error in recommend_complementary_stocks: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
