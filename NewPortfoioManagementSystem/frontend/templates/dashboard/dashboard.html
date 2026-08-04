@@ -36,6 +36,38 @@
                 from {opacity: 0;}
                 to {opacity: 1;}
             }
+
+            /* Improved header styling */
+            .welcome-banner {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 2rem;
+                border-radius: 8px;
+                margin-bottom: 2rem;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            }
+
+            .welcome-banner h3 {
+                margin: 0 0 0.5rem 0;
+                font-size: 1.8rem;
+                font-weight: 600;
+            }
+
+            .welcome-banner p {
+                margin: 0;
+                opacity: 0.95;
+                font-size: 0.95rem;
+            }
+
+            .user-info-badge {
+                background: rgba(255, 255, 255, 0.2);
+                padding: 0.75rem 1.5rem;
+                border-radius: 50px;
+                display: inline-block;
+                margin-top: 1rem;
+                font-size: 0.9rem;
+                font-weight: 500;
+            }
         </style>
 
     </head>
@@ -268,6 +300,59 @@
                                 </div>
                             </div>
                             <!-- end page title -->
+
+                            <!-- Welcome Banner -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="welcome-banner">
+                                        <h3>Welcome back, {{ user.first_name|default:user.username }}! 👋</h3>
+                                        <p>Manage your investment portfolio with real-time insights and smart recommendations.</p>
+                                        <div class="user-info-badge">
+                                            📊 Portfolio Value: <strong>${{ totalInvestment|floatformat:2 }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Key Statistics Cards -->
+                            <div class="row mb-4">
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="uil-briefcase font-size-32 text-primary mb-2"></i>
+                                            <h6 class="card-title mb-1 text-muted">Active Holdings</h6>
+                                            <h4 class="mb-0">{{ holdings|length }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="uil-chart-line font-size-32 text-success mb-2"></i>
+                                            <h6 class="card-title mb-1 text-muted">Sectors</h6>
+                                            <h4 class="mb-0">{{ sectors.1|length }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="uil-money-withdrawal font-size-32 text-warning mb-2"></i>
+                                            <h6 class="card-title mb-1 text-muted">Total Invested</h6>
+                                            <h4 class="mb-0">${{ totalInvestment|floatformat:0 }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="uil-target font-size-32 text-danger mb-2"></i>
+                                            <h6 class="card-title mb-1 text-muted">Diversification</h6>
+                                            <h4 class="mb-0">Good</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div class="row">
                                 <div class="col-12">
