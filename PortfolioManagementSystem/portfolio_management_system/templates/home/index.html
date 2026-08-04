@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -58,6 +58,8 @@
 							<ul class="right-widget celarfix">
 								{% if not user.is_authenticated %}
 								<li class="login-button"><a href="{% url 'account_login' %}">Login <i class="flaticon-right-thin"></i></a></li>
+								{% else %}
+								<li class="login-button"><a href="{% url 'account_logout' %}">Logout <i class="flaticon-right-thin"></i></a></li>
 								{% endif %}
 							</ul> <!-- /.right-widget -->
 
@@ -87,11 +89,6 @@
 												<li class="nav-item">
 													<a class="nav-link js-scroll-trigger" href="#contact">Contact us</a>
 												</li>
-												{% if user.is_authenticated %}
-												<li class="nav-item">
-													<a class="nav-link js-scroll-trigger" href="{% url 'dashboard' %}">Dashboard</a>
-												</li>
-												{% endif %}
 											</ul>
 										</div>
 									</div>
@@ -288,7 +285,7 @@
 							<div class="row">
 								<div class="col-lg-5 offset-lg-7">
 									<div class="text">
-										<h3>don’t miss our apps</h3>
+										<h3>donâ€™t miss our apps</h3>
 										<h2>Mobile Application for Faster Access.</h2>
 										<h6>Now you can control dashboard from the mobile!</h6>
 										<p>Our apps will be available soon at your fingertips on your mobile. Our Development Team is committed to build apps for you and it will be available soon ...</p>
@@ -318,7 +315,7 @@
 								<h2><span>Fastest</span> Growing Global Network.</h2>
 							</div>
 							<div class="col-lg-6 order-lg-first">
-								<p>We’re the fastest growing portfolio management system with strong community & security. Check our info with numbers.</p>
+								<p>Weâ€™re the fastest growing portfolio management system with strong community & security. Check our info with numbers.</p>
 							</div>
 						</div>
 
