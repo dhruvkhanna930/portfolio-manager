@@ -41,6 +41,20 @@
           <div class="col-lg-8 offset-lg-2 col-md-8 offset-md-2">
             <div class="covid-wrap">
               <h2>Risk Profile Creation Form</h2>
+              <div style="background: #f0f4ff; border-left: 4px solid #667eea; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                  <span style="font-weight: 600;">Progress</span>
+                  <span id="progress-percent" style="color: #667eea; font-weight: 600;">0% Complete</span>
+                </div>
+                <div style="height: 6px; background: #e0e0e0; border-radius: 3px; overflow: hidden; margin-bottom: 0.75rem;">
+                  <div id="progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.3s ease;"></div>
+                </div>
+                <small style="color: #999;">⏱️ Estimated time: 3-5 minutes</small>
+              </div>
+              <div style="background: #fff8e1; border-left: 4px solid #ffa94d; padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <strong style="color: #f39c12;">💡 Tip:</strong>
+                <span id="tip-text" style="color: #666;">This questionnaire helps us understand your investment goals and risk tolerance</span>
+              </div>
               <form action="{% url 'risk-profile' %}" method="post">
                 {% csrf_token %}
                 <div class="covid-test-wrap test-step active">
@@ -623,6 +637,49 @@
     <script src="https://uigaint.com/demo/html/anfra/assets/js/bootstrap.min.js"></script>
 
     <script src="{% static 'riskprofile/js/custom.js' %}"></script>
+    <script>
+      function updateProgress() {
+        const steps = document.querySelectorAll('.covid-test-wrap');
+        let currentStep = 0;
+        steps.forEach((step, index) => {
+          if (step.classList.contains('active')) {
+            currentStep = index + 1;
+          }
+        });
+        const progress = Math.round((currentStep / 13) * 100);
+        document.getElementById('progress-bar').style.width = progress + '%';
+        document.getElementById('progress-percent').textContent = progress + '% Complete';
+
+        const tips = [
+          'Consider your age and investment timeline carefully.',
+          'Having emergency funds is crucial before investing.',
+          'Start with what you can afford comfortably.',
+          'Risk tolerance varies by individual.',
+          'Set realistic return expectations.',
+          'Capital preservation is important.',
+          'Income stability affects investment choices.',
+          'Volatility tolerance is key.',
+          'Life stage determines investment strategy.',
+          'Investment knowledge helps decision-making.',
+          'Time horizon affects portfolio allocation.',
+          'Job security influences risk appetite.',
+          'Review and adjust your portfolio regularly.'
+        ];
+        document.getElementById('tip-text').textContent = tips[currentStep - 1] || 'Answer each question honestly for best results.';
+      }
+
+      document.addEventListener('DOMContentLoaded', updateProgress);
+      document.querySelectorAll('.button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setTimeout(updateProgress, 100);
+        });
+      });
+      document.querySelectorAll('.prev-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setTimeout(updateProgress, 100);
+        });
+      });
+    </script>
   </body>
 
 <!-- Mirrored from uigaint.com/demo/html/anfra/version1/covid-1.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Jan 2021 07:18:52 GMT -->
