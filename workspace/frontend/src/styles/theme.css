@@ -5,7 +5,10 @@
   --border: #22252C;
   --text-primary: #F5F6FA;
   --text-secondary: #9298A5;
-  --text-muted: #5C6270;
+  /* Was #5C6270 -- measured contrast against --bg/--surface was only ~3.0-3.2:1,
+     below the 4.5:1 WCAG AA threshold for body text. Brightened while keeping
+     the same blue-gray hue; now ~4.65-4.97:1. */
+  --text-muted: #7A808E;
   --accent: #22D3A6;
   --accent-hover: #1CBF95;
   --positive: #16C784;

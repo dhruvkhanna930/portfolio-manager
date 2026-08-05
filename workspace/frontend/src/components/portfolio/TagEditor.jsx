@@ -27,6 +27,7 @@ export default function TagEditor({ holdingId, tags = [] }) {
     assignTag.mutate(
       { holdingId, name },
       {
+        onSuccess: () => showToast.success(`Tagged "${name}"`),
         onError: (error) => showToast.error(getApiErrorMessage(error, 'Could not add tag')),
       }
     )
@@ -34,10 +35,11 @@ export default function TagEditor({ holdingId, tags = [] }) {
     setAdding(false)
   }
 
-  const handleRemove = (tagId) => {
+  const handleRemove = (tagId, tagName) => {
     removeTag.mutate(
       { holdingId, tagId },
       {
+        onSuccess: () => showToast.success(`Removed "${tagName}"`),
         onError: (error) => showToast.error(getApiErrorMessage(error, 'Could not remove tag')),
       }
     )
@@ -50,7 +52,7 @@ export default function TagEditor({ holdingId, tags = [] }) {
           {tag.name}
           <button
             type="button"
-            onClick={() => handleRemove(tag.tag_id)}
+            onClick={() => handleRemove(tag.tag_id, tag.name)}
             className="rounded-full p-0.5 hover:bg-accent/20"
             aria-label={`Remove ${tag.name}`}
           >

@@ -2,18 +2,19 @@ import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import Styleguide from './pages/Styleguide'
 import Calculators from './pages/Calculators'
-import ComingSoon from './pages/ComingSoon'
+import Home from './pages/Home'
 import Portfolio from './pages/Portfolio'
 import Transactions from './pages/Transactions'
 import AssetTypePage from './pages/AssetTypePage'
 import AssetDetail from './pages/AssetDetail'
 import Sips from './pages/Sips'
+import News from './pages/News'
 
 function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<ComingSoon title="Home" />} />
+        <Route path="/" element={<Home />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/transactions" element={<Transactions />} />
         <Route
@@ -46,6 +47,7 @@ function App() {
         <Route path="/asset/:assetId" element={<AssetDetail />} />
         <Route path="/calculators" element={<Calculators />} />
         <Route path="/sips" element={<Sips />} />
+        <Route path="/news" element={<News />} />
         <Route path="/styleguide" element={<Styleguide />} />
       </Route>
     </Routes>

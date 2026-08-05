@@ -65,7 +65,7 @@ export default function SipCard({ sip }) {
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs text-text-secondary">Assumed Return (%/yr)</label>
           <input
