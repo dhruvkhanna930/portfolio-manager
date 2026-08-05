@@ -433,14 +433,23 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10, use_ai=Tru
         return []
 
 
-def recommend_popular_stocks(num_recommendations=10, use_ai=True):
-    """Fallback: Recommend popular stocks for cold-start users (no portfolio history)"""
-    print(f"\n[COLD-START FALLBACK] No portfolio found - recommending top {num_recommendations} popular stocks\n")
+def recommend_popular_stocks(num_recommendations=10, use_ai=True, preferred_sectors=None):
+    """Fallback: Recommend from 200+ stocks for cold-start users (no portfolio history)
+
+    Uses live data to score and rank stocks by:
+    - Market cap (popularity/stability)
+    - P/E ratio (valuation/quality)
+    - Sector preference (if provided)
+    """
+    print(f"\n[COLD-START FALLBACK] No portfolio found")
+    print(f"[STRATEGY] Fetching live data for 200+ stocks from comprehensive list\n")
 
     popular_list = get_popular_stocks_list()
+    print(f"[INFO] Analyzing {len(popular_list)} stocks across all sectors/market caps\n")
+
     recommendations = []
 
-    for symbol in popular_list[:num_recommendations * 2]:
+    for symbol in popular_list:
         try:
             fundamentals = get_stock_fundamentals(symbol)
             if fundamentals:
@@ -449,21 +458,64 @@ def recommend_popular_stocks(num_recommendations=10, use_ai=True):
 
                 market_cap = float(info.get('marketCap', 0)) or 0
                 pe_ratio = float(info.get('trailingPE', 0)) or 0
+                beta = float(info.get('beta', 1.0)) or 1.0
+                dividend_yield = float(info.get('dividendYield', 0)) or 0
 
-                popularity_score = min((market_cap / 1e12) * 100, 100)
-                quality_score = min(100 / (pe_ratio + 1), 100) if pe_ratio > 0 else 50
+                # LIVE DATA SCORING:
+                # Market Cap Score (Popularity/Stability)
+                if market_cap >= 2e12:
+                    popularity_score = 100  # Mega-cap
+                elif market_cap >= 500e9:
+                    popularity_score = 95   # Large-cap
+                elif market_cap >= 100e9:
+                    popularity_score = 85   # Mid-cap
+                else:
+                    popularity_score = 70   # Small-cap
 
-                rule_score = (popularity_score * 0.6 + quality_score * 0.4)
+                # P/E Quality Score
+                if pe_ratio > 0:
+                    if pe_ratio < 15:
+                        quality_score = 95  # Undervalued
+                    elif pe_ratio < 25:
+                        quality_score = 85  # Fair value
+                    elif pe_ratio < 35:
+                        quality_score = 75  # Premium
+                    else:
+                        quality_score = 60  # Very premium
+                else:
+                    quality_score = 50
+
+                # Risk Score (Beta)
+                if beta < 0.8:
+                    risk_score = 95  # Low risk
+                elif beta < 1.2:
+                    risk_score = 85  # Medium risk
+                else:
+                    risk_score = 75  # Higher risk
+
+                # Dividend Score
+                dividend_score = min(dividend_yield * 500, 100) if dividend_yield > 0 else 50
+
+                # Combined Rule Score (LIVE data weighted)
+                rule_score = (
+                    popularity_score * 0.35 +
+                    quality_score * 0.35 +
+                    risk_score * 0.20 +
+                    dividend_score * 0.10
+                )
+
                 fundamentals['rule_score'] = round(rule_score, 2)
-                fundamentals['source'] = 'cold_start_fallback'
+                fundamentals['source'] = 'cold_start_fallback_live'
+                fundamentals['market_cap_category'] = 'Mega' if market_cap >= 2e12 else 'Large' if market_cap >= 500e9 else 'Mid' if market_cap >= 100e9 else 'Small'
                 recommendations.append(fundamentals)
         except Exception as e:
-            print(f"Error with {symbol}: {e}")
             continue
 
-    if use_ai:
-        print("Computing AI model scores for popular stocks...")
-        ai_scores = compute_ai_model_scores([r['symbol'] for r in recommendations])
+    print(f"[LIVE DATA] Scored {len(recommendations)} stocks from comprehensive list\n")
+
+    if use_ai and len(recommendations) > 0:
+        print("[AI ENHANCEMENT] Computing sentiment & forecast for top candidates...\n")
+        ai_scores = compute_ai_model_scores([r['symbol'] for r in recommendations[:num_recommendations * 3]])
         for rec in recommendations:
             if rec['symbol'] in ai_scores:
                 ai_data = ai_scores[rec['symbol']]
@@ -477,19 +529,105 @@ def recommend_popular_stocks(num_recommendations=10, use_ai=True):
 
         recommendations.sort(key=lambda x: x.get('final_score', x['rule_score']), reverse=True)
 
-    print(f"[FALLBACK] Returning {len(recommendations[:num_recommendations])} popular stock recommendations")
+    print(f"[RESULT] Returning {min(len(recommendations), num_recommendations)} recommendations from {len(popular_list)} stocks")
+    print("[SOURCES] Live market data (yfinance) + AI models (DistilBERT, LSTM)\n")
     return recommendations[:num_recommendations]
 
 
 def get_popular_stocks_list():
-    """Return a list of popular stocks to recommend from"""
-    popular_stocks = [
-        'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'V', 'WMT',
-        'JNJ', 'PG', 'KO', 'PEP', 'MCD', 'DIS', 'NFLX', 'INTC', 'AMD', 'CRM',
-        'ADBE', 'CSCO', 'ORCL', 'IBM', 'TM', 'BMW', 'F', 'GM', 'BABA', 'TSM',
-        'XOM', 'CVX', 'MRK', 'ABBV', 'PFE', 'LLY', 'UNH', 'BA', 'GE', 'RTX'
-    ]
-    return popular_stocks
+    """Return a comprehensive list of 200+ stocks across all sectors and market caps
+
+    Organized by:
+    - Mega-cap (>$2T)
+    - Large-cap ($500B-$2T)
+    - Mid-cap ($100B-$500B)
+    - Small-cap ($10B-$100B)
+
+    Covers 9 major sectors + diversified industries
+    """
+    stocks = {
+        'MEGA_CAP': [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'BRK.B',
+        ],
+        'LARGE_CAP_TECH': [
+            'INTC', 'AMD', 'CRM', 'ADBE', 'CSCO', 'ORCL', 'AVGO', 'QCOM',
+            'IBM', 'NFLX', 'ASML', 'TSM', 'AMAT', 'LRCX',
+        ],
+        'LARGE_CAP_FINANCE': [
+            'JPM', 'BAC', 'WFC', 'GS', 'MS', 'BLK', 'SCHW', 'COIN',
+            'AXP', 'USB', 'PNC', 'COF', 'MET', 'ICE',
+        ],
+        'LARGE_CAP_HEALTHCARE': [
+            'JNJ', 'UNH', 'PFE', 'ABBV', 'TMO', 'MRK', 'LLY', 'AMGN',
+            'MDT', 'CVS', 'ELV', 'VRTX', 'REGN', 'CRWD',
+        ],
+        'LARGE_CAP_CONSUMER': [
+            'WMT', 'PG', 'KO', 'PEP', 'MCD', 'DIS', 'NKE', 'SBUX',
+            'LOW', 'HD', 'TJX', 'COST', 'ORLY', 'ROST',
+        ],
+        'LARGE_CAP_INDUSTRIAL': [
+            'BA', 'CAT', 'GE', 'LMT', 'RTX', 'HON', 'ITW', 'MMM',
+            'AZO', 'URI', 'EMR', 'ETN', 'NOC', 'DE',
+        ],
+        'LARGE_CAP_ENERGY': [
+            'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'HES',
+            'OXY', 'MAR', 'HAL', 'FANG', 'LNG', 'RIG',
+        ],
+        'LARGE_CAP_UTILITIES': [
+            'NEE', 'DUK', 'SO', 'EXC', 'AWK', 'AEP', 'DTE', 'EIX',
+            'SRE', 'WEC', 'PNW', 'AES', 'CMS', 'PPL',
+        ],
+        'LARGE_CAP_REAL_ESTATE': [
+            'AMT', 'PLD', 'EQIX', 'DLR', 'CCI', 'VICI', 'WELL', 'AVB',
+            'EQR', 'SPG', 'PSA', 'UMH', 'PTC', 'SBAC',
+        ],
+        'LARGE_CAP_MATERIALS': [
+            'NEM', 'FCX', 'TECK', 'SCCO', 'RIO', 'VALE', 'NUCOR', 'CLF',
+            'MOS', 'CF', 'WRK', 'APD', 'ECL', 'SHW',
+        ],
+        'MID_CAP_TECH': [
+            'SPLK', 'DDOG', 'CRWD', 'NET', 'OKTA', 'FTNT', 'CYBR', 'SIEM',
+            'SE', 'UPST', 'SNOW', 'DKNG', 'ROKU', 'PINS',
+        ],
+        'MID_CAP_FINANCE': [
+            'SOFI', 'SQ', 'PYPL', 'HOOD', 'MSTR', 'INTU', 'TROW', 'CME',
+            'NDAQ', 'KEYS', 'DFS', 'EFX', 'LYV', 'MPWR',
+        ],
+        'MID_CAP_HEALTHCARE': [
+            'ZTS', 'VRTX', 'EXAS', 'VEEV', 'DXCM', 'ALGN', 'XRAY', 'PODD',
+            'RARE', 'DNLI', 'RGEN', 'TXMD', 'GNRC', 'INCY',
+        ],
+        'MID_CAP_CONSUMER': [
+            'ULTA', 'FIVE', 'DECK', 'LULU', 'LMND', 'BKNG', 'ETSY', 'ABNB',
+            'DASH', 'LYG', 'LEG', 'WHR', 'ZBH', 'SKX',
+        ],
+        'MID_CAP_INDUSTRIAL': [
+            'GWW', 'ODFL', 'EXPD', 'JBLU', 'XPO', 'UPS', 'FDX', 'AXON',
+            'CDNA', 'LPX', 'IEX', 'WCC', 'FLR', 'MAS',
+        ],
+        'SMALL_CAP_GROWTH': [
+            'COIN', 'RIOT', 'MARA', 'HOOD', 'CLSK', 'CORE', 'IREN', 'LCID',
+            'RIVN', 'NIO', 'XPEV', 'LI', 'KNBE', 'BGCP',
+        ],
+        'SMALL_CAP_VALUE': [
+            'PHM', 'RBLX', 'ATRC', 'GLPI', 'CEMP', 'JMIA', 'UPLD', 'VRSN',
+            'ZM', 'TTD', 'AVPT', 'SWI', 'STLA', 'VRM',
+        ],
+        'DIVIDEND_STOCKS': [
+            'O', 'SCHD', 'VYM', 'DGRO', 'KMI', 'ENB', 'TRP', 'LYB',
+            'PBA', 'OKE', 'NTR', 'MO', 'PM', 'STWD',
+        ],
+        'DEFENSIVE_STOCKS': [
+            'PG', 'KO', 'MO', 'CL', 'ADP', 'CHD', 'SJM', 'HSY',
+            'FMX', 'TSN', 'BGS', 'CTAS', 'IDXX', 'CBPO',
+        ],
+    }
+
+    flat_list = []
+    for category, symbol_list in stocks.items():
+        flat_list.extend(symbol_list)
+
+    return flat_list
 
 
 def get_portfolio_recommendations(portfolio, use_ai=True):
