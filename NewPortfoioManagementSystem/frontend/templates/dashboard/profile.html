@@ -1,0 +1,85 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>My Profile | Portfolio Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{% static 'dashboard/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'dashboard/css/icons.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'dashboard/css/app.min.css' %}" rel="stylesheet" type="text/css" />
+    <style>
+      body { background: #f4f7fb; }
+      .profile-card { background: #fff; border-radius: 16px; box-shadow: 0 16px 45px rgba(40, 57, 101, 0.08); }
+      .profile-card h1 { font-size: 2rem; }
+      .profile-section { min-height: 100vh; padding: 40px 0; }
+      .profile-metric { background: #f8fbff; border-radius: 16px; padding: 26px; }
+      .text-muted-small { color: #6c757d; }
+    </style>
+</head>
+
+<body>
+    <div class="container profile-section">
+      <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="mb-1">My Profile</h1>
+            <p class="text-muted-small mb-0">Your portfolio account details, risk category, and questionnaire summary.</p>
+          </div>
+          <div>
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-primary mr-2">Back to Dashboard</a>
+            <a href="{% url 'risk-profile' %}" class="btn btn-primary">Edit Questionnaire</a>
+          </div>
+        </div>
+      </div>
+      <div class="row justify-content-center">
+        <div class="col-xl-10">
+          <div class="profile-card p-4 mb-4">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <h2 class="h4 mb-3">Account Information</h2>
+                <p class="mb-2"><strong>Name:</strong> {{ user.get_full_name|default:user.username }}</p>
+                <p class="mb-2"><strong>Email:</strong> {{ user.email }}</p>
+                <p class="mb-0"><strong>Username:</strong> {{ user.username }}</p>
+              </div>
+              <div class="col-md-6">
+                <h2 class="h4 mb-3">Risk Profile</h2>
+                {% if risk_profile %}
+                  <p class="mb-2"><strong>Category:</strong> {{ risk_profile.category }}</p>
+                  <p class="mb-2"><strong>Investment horizon:</strong> {{ risk_profile.investment_length|default:'Not available' }}</p>
+                  <p class="mb-2"><strong>Expected return:</strong> {{ risk_profile.expected_return_rate|default:'Not available' }}</p>
+                  <p class="mb-0"><strong>Emergency funds:</strong> {{ risk_profile.emergency_funds|default:'Not set yet' }}</p>
+                {% else %}
+                  <p class="mb-0 text-muted">Complete the risk profile questionnaire to enable portfolio recommendations.</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <div class="profile-metric">
+                <h3 class="h6 text-uppercase text-muted mb-3">Emergency savings</h3>
+                <p class="mb-0">{{ risk_profile.emergency_funds|default:'Not set yet' }}</p>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="profile-metric">
+                <h3 class="h6 text-uppercase text-muted mb-3">Life stage</h3>
+                <p class="mb-0">{{ risk_profile.current_life_stage|default:'Not set yet' }}</p>
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <div class="profile-metric">
+                <h3 class="h6 text-uppercase text-muted mb-3">Work status</h3>
+                <p class="mb-0">{{ risk_profile.work_status|default:'Not set yet' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+</body>
+
+</html>
