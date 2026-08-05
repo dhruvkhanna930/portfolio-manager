@@ -4,3 +4,7 @@ Flask-Migrate==4.0.7
 Flask-Cors==4.0.1
 flask-smorest==0.44.0
 python-dotenv==1.0.1
+yfinance==1.5.2
+APScheduler==3.11.3
+tenacity==9.1.4
+requests==2.34.2

@@ -1,16 +1,24 @@
-from models import AssetMetadata, Holding, db
+from models import Holding, db
+from services.analytics_service import compute_holding_metrics
 
 
 class HoldingNotFoundError(Exception):
     pass
 
 
-class AssetNotFoundError(Exception):
-    pass
-
-
 def list_holdings():
-    return Holding.query.order_by(Holding.created_at.desc()).all()
+    holdings = Holding.query.order_by(Holding.created_at.desc()).all()
+    for row in compute_holding_metrics(holdings):
+        holding = row["holding"]
+        holding.current_price = row["current_price"]
+        holding.invested_value = row["invested_value"]
+        holding.current_value = row["current_value"]
+        holding.profit_loss = row["profit_loss"]
+        holding.profit_loss_pct = row["profit_loss_pct"]
+        holding.day_change_value = row["day_change_value"]
+        holding.weight_pct = row["weight_pct"]
+        holding.is_priced = row["is_priced"]
+    return holdings
 
 
 def get_holding(holding_id):
@@ -20,34 +28,6 @@ def get_holding(holding_id):
     return holding
 
 
-def create_holding(data):
-    asset = db.session.get(AssetMetadata, data["asset_id"])
-    if asset is None:
-        raise AssetNotFoundError(data["asset_id"])
-
-    holding = Holding(
-        asset_id=data["asset_id"],
-        quantity=data["quantity"],
-        avg_buy_price=data["avg_buy_price"],
-        first_bought=data.get("first_bought"),
-        notes=data.get("notes"),
-    )
-    db.session.add(holding)
-    db.session.commit()
-    return holding
-
-
-def update_holding(holding_id, data):
-    holding = get_holding(holding_id)
-    holding.quantity = data["quantity"]
-    holding.avg_buy_price = data["avg_buy_price"]
-    holding.first_bought = data.get("first_bought")
-    holding.notes = data.get("notes")
-    db.session.commit()
-    return holding
-
-
-def delete_holding(holding_id):
-    holding = get_holding(holding_id)
-    db.session.delete(holding)
-    db.session.commit()
+# v2: holdings are created, grown, shrunk, and removed exclusively by
+# transaction_service (BUY/SELL). There are deliberately no create/update/delete
+# functions here -- see CLAUDE.md §0.1 item 11.

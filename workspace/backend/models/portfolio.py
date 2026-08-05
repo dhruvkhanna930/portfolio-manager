@@ -62,6 +62,9 @@ class Transaction(db.Model):
     asset = db.relationship("AssetMetadata", back_populates="transactions")
     holding = db.relationship("Holding", back_populates="transactions")
     sip = db.relationship("Sip", back_populates="transactions")
+    wallet_entry = db.relationship(
+        "WalletLedger", back_populates="transaction", uselist=False
+    )
 
 
 db.Index("idx_txn_asset", Transaction.asset_id)

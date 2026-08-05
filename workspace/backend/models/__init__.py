@@ -35,3 +35,4 @@ from .portfolio import (  # noqa: E402,F401
     Transaction,
     Watchlist,
 )
+from .wallet import WalletLedger  # noqa: E402,F401

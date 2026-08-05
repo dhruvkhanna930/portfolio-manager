@@ -48,6 +48,49 @@ Fixed here so Claude Code never has to guess:
     `schemas/ # marshmallow + swagger` directory. flask-smorest gives you both from
     one schema definition instead of hand-written swagger decorators.
 
+### 0.1 — v2 update (scoped in after Prompt 5 was built)
+
+Once holdings CRUD + analytics were actually running, it became clear the MVP
+simplification (direct-edit holdings, a small fixed seed catalog) doesn't read as a
+*real* portfolio app. These land right at the natural seam before transactions (old
+Phase 6) — nothing already built gets thrown away, Phase 6 just grew:
+
+11. **Holdings were directly editable (quantity/avg_buy_price via PUT).** Real
+    brokerage/investment apps never let you do this — a holding is a *result* of
+    buying and selling, not a row you hand-edit. `POST`/`PUT /api/portfolio` are
+    removed; holdings are now created, grown, shrunk, and deleted automatically by
+    `/api/transactions` (BUY creates/increases, SELL decreases/removes at zero). See
+    §5.2, §7.
+12. **No wallet/cash concept.** Every real portfolio app has a cash balance you fund
+    before you can buy. Added `wallet_ledger` (§5.2) — balance is `SUM(amount)`,
+    never a separately-stored mutable field, consistent with the doc's own golden
+    rule in §1. BUY debits it, SELL/DIVIDEND credit it; a BUY that would overdraw it
+    is rejected.
+13. **Asset catalog was a small fixed seed list.** Fine for early dev, but "like
+    Groww" means picking from a real universe of thousands of stocks/MF schemes,
+    not 15 pre-loaded rows. Added a live search + on-demand creation flow (§4.1) —
+    Phase 2's seed data becomes a *starter* set, not the ceiling.
+14. **Chart set was too thin for "many interactive charts."** Recharts alone doesn't
+    do candlesticks well. Added **lightweight-charts** (TradingView's own
+    open-source charting lib) for price/candlestick charts specifically, plus named
+    comparison-overlay, sparkline, and allocation-treemap components — see §8.5, §9.
+
+### 0.2 — v2.1 update (historical depth + calculators)
+
+15. **Period buttons (1D/1W/1M/6M/1Y/3Y/5Y/ALL) needed a real data strategy, not
+    just a UI row.** Added §4.2 mapping each period to what's actually fetchable
+    from yfinance/mfapi.in, plus a one-time backfill-on-resolve so charts read from
+    `price_history` instead of live-calling on every view.
+16. **Added a Calculators feature** (new Phase 9, §6.11–§6.13, §7) — a Groww-style
+    "what would I have made" toolset: a Historical Returns Calculator (lumpsum
+    backtest at a real past price), and a SIP Calculator with both a projected mode
+    (assumed rate) and a historical-backtest mode (real monthly prices), plus a
+    Step-up/Top-up SIP variant. These are stateless read-only calculations — they
+    reuse `price_history` and `pyxirr`, they don't add new source-of-truth tables.
+    Roadmap renumbered from here: old Phase 9 (Watchlist/SIPs/tags/search) → 10,
+    old 10 (News) → 11, old 11 (Home) → 12, Recommendation layer stays **last**,
+    now Phase 13.
+
 Everything below reflects these fixes already applied — treat this document as final,
 not as a diff.
 
@@ -83,7 +126,7 @@ counters and charts) rather than literally cloning either product's branding.
 | Caching | Flask-Caching (SimpleCache locally; can swap to Redis later) | For news + hot price reads. |
 | Frontend | React 18 + Vite | Original doc said React; Vite over CRA for speed. |
 | Styling | Tailwind CSS + CSS variables for theme tokens | See §8. |
-| Charts | **Recharts** | Decided — animates well, composes naturally with React, good for line/area/donut/bar all needed here. |
+| Charts | **Recharts** + **lightweight-charts** (v2, candlesticks only) | Recharts for donut/bar/area/sparkline/KPI-adjacent charts. Added TradingView's open-source `lightweight-charts` specifically for the Asset Detail price/candlestick chart — Recharts has no real candlestick support and this is the one place it matters. Free (Apache-2.0), needs a small attribution notice/link to tradingview.com on the page — see §8.5. |
 | Motion | Framer Motion | Page transitions, card hover states, animated modals. |
 | Server state | @tanstack/react-query | Caching, refetching, loading/error states for every API call — the original doc never specified this and it's the backbone of a data-heavy dashboard. |
 | Forms | react-hook-form + zod | Add/Edit holding, transaction, SIP forms. |
@@ -152,6 +195,63 @@ retrofitted):**
 - Batch sync runs on a schedule (APScheduler, e.g. every 30–60 min during market hours,
   once daily off-hours) rather than fetching on every single page load.
 - Respect mfapi.in's own request from its docs to cache and not hammer it.
+
+### 4.1 Asset universe: dynamic vs curated (v2)
+
+Stocks and mutual funds are **not** limited to whatever's seeded in the DB — the
+catalog grows on demand:
+
+- **Stock search:** `yf.Search(query)` (yfinance's own wrapper around Yahoo's
+  unofficial autocomplete endpoint) → filter results to `.NS`/`.BO` symbols. This
+  is unofficial/scraped like everything else in yfinance, so cache results briefly
+  (a few minutes) and keep a small bundled CSV of ~200–500 well-known NSE symbols
+  as an offline fallback so search doesn't go dead mid-demo if Yahoo throttles it.
+- **MF search:** mfapi.in's own `/mf/search?q=` — already covers all ~16,000+
+  schemes, no fallback needed, it's a real search endpoint, not scraped.
+- **Bonds stay curated.** There's no live search API for Indian retail bonds (see
+  table above). Keep bonds as a manually-maintained list the user adds to by hand —
+  that's a permanent, legitimate difference from stocks/MF, not a gap to close later.
+- **Resolve-on-select:** when the user picks a search result not already in
+  `asset_metadata`, create it (+ its type-specific `*_details` row + an initial
+  `price_snapshot`/`price_history` row) in that moment, then continue into the
+  normal BUY flow with the new `asset_id`. See `POST /api/assets/resolve` in §7.
+- **Home's "market movers" still doesn't need the whole universe.** Sync a small
+  fixed basket (e.g. Nifty 50 constituents) on the regular price-sync schedule
+  regardless of what the user actually holds, purely to power a market-wide
+  gainers/losers section — see `market_index_constituents` in §5.1. Don't sync
+  thousands of tickers just to compute "top movers."
+
+### 4.2 Historical price periods & backfill (v2)
+
+Match Groww-style period buttons to real data behavior — don't fake granularity
+that isn't actually there. This applies to the **per-asset** Asset Detail chart
+(§7, §8.5). The **portfolio-level** performance chart (§6.8) intentionally skips
+intraday — aggregating live intraday across many holdings isn't worth the
+complexity, and "today's move" is already on the KPI card — so it only offers
+1W/1M/6M/1Y/3Y/5Y/ALL.
+
+| UI period | Stocks (yfinance) | Mutual Funds (mfapi.in) | Served from |
+|---|---|---|---|
+| 1D | Live intraday call, 5m interval, cached ~5 min | N/A — MF doesn't trade intraday; show latest NAV vs. prev close only (2 points), don't fake a curve | Live, not `price_history` |
+| 1W | Last 7 calendar days | Last 7 calendar days | `price_history` cache |
+| 1M | Last 1 month | Last 1 month | `price_history` cache |
+| 6M | Last 6 months | Last 6 months | `price_history` cache |
+| 1Y | Last 1 year | Last 1 year | `price_history` cache |
+| 3Y | Last 3 years (consider weekly downsampling for render performance) | Last 3 years | `price_history` cache |
+| 5Y | Last 5 years (weekly downsampling) | Last 5 years | `price_history` cache |
+| Since inception / ALL | Full available history (monthly downsampling for very long ranges) | Full available history — mfapi.in returns it complete, in one call | `price_history` cache |
+
+**Backfill once, on resolve — not live-fetch-per-view.** When an asset is first
+added via `POST /api/assets/resolve` (§4.1), do one deep historical pull and store
+all of it in `price_history` in that same request, so every period button above
+just queries the cache:
+- Stocks: `Ticker(symbol).history(period="max", interval="1d")` — a single call.
+- MF: `mfapi.in/mf/{code}` already returns the complete NAV history in one call.
+- Bonds: no backfill possible — `price_history` rows only appear when the user
+  manually updates the price (one row per manual update).
+
+This backfill is also what makes the Calculators (§6.11–§6.13, §12 Phase 9) work —
+they need real historical prices at arbitrary past dates, not just "latest."
 
 ---
 
@@ -271,9 +371,17 @@ CREATE TABLE news_cache (
 );
 CREATE INDEX idx_news_asset      ON news_cache(asset_id);
 CREATE INDEX idx_news_published  ON news_cache(published_at);
+
+-- NEW (v2): a small curated basket (e.g. Nifty 50) kept in sync regardless of
+-- whether the user holds these — purely to power Home's market-wide movers.
+CREATE TABLE market_index_constituents (
+    asset_id   BIGINT REFERENCES asset_metadata(asset_id) ON DELETE CASCADE,
+    index_name VARCHAR(30) NOT NULL,   -- 'NIFTY50', etc. — supports more than one later
+    PRIMARY KEY (asset_id, index_name)
+);
 ```
 
-### 5.2 User (source-of-truth) layer — unchanged from original, it was correct
+### 5.2 User (source-of-truth) layer — v2: holdings are now fully derived
 
 ```sql
 CREATE TABLE holdings (
@@ -286,6 +394,10 @@ CREATE TABLE holdings (
     created_at    TIMESTAMP DEFAULT now(),
     updated_at    TIMESTAMP DEFAULT now()
 );
+-- v2: DERIVED CACHE of transactions, not directly editable. No endpoint sets
+-- quantity/avg_buy_price directly — a row appears on first BUY, is recalculated
+-- by analytics_service on every later BUY/SELL, and is deleted at quantity = 0.
+-- `notes` stays freely editable since it isn't a derived field.
 
 CREATE TABLE sips (
     sip_id       BIGSERIAL PRIMARY KEY,
@@ -300,7 +412,7 @@ CREATE TABLE sips (
     created_at   TIMESTAMP DEFAULT now()
 );
 -- Note: SIPs are simulated, not executed. There is no bank auto-debit. A SIP row
--- + a "growth projection" calculation is the entire scope — see §12 Phase 9.
+-- + a "growth projection" calculation is the entire scope — see §12 Phase 10.
 
 CREATE TABLE transactions (
     transaction_id BIGSERIAL PRIMARY KEY,
@@ -312,6 +424,20 @@ CREATE TABLE transactions (
     price          NUMERIC(18,4) NOT NULL,
     fees           NUMERIC(12,4) DEFAULT 0,
     txn_date       DATE NOT NULL,
+    created_at     TIMESTAMP DEFAULT now()
+);
+-- Every BUY/SELL/DIVIDEND writes a matching wallet_ledger row in the same
+-- application-level DB transaction — never let the two drift apart.
+
+-- NEW (v2): cash balance. balance = SUM(amount) over this table — never a
+-- separately stored mutable field, per the doc's own golden rule (§1).
+CREATE TABLE wallet_ledger (
+    ledger_id      BIGSERIAL PRIMARY KEY,
+    entry_type     VARCHAR(15) NOT NULL
+                   CHECK (entry_type IN ('DEPOSIT','WITHDRAWAL','BUY','SELL','DIVIDEND','FEE')),
+    amount         NUMERIC(18,2) NOT NULL,     -- signed: + credit / − debit
+    transaction_id BIGINT REFERENCES transactions(transaction_id),
+    note           VARCHAR(255),
     created_at     TIMESTAMP DEFAULT now()
 );
 
@@ -342,15 +468,17 @@ CREATE INDEX idx_holdings_asset     ON holdings(asset_id);
 CREATE INDEX idx_metrics_key        ON asset_metrics(metric_key);
 CREATE INDEX idx_meta_type          ON asset_metadata(asset_type);
 CREATE INDEX idx_price_history_date ON price_history(asset_id, price_date);
+CREATE INDEX idx_wallet_created     ON wallet_ledger(created_at);
 ```
 
-### 5.4 Relationships (unchanged)
+### 5.4 Relationships (v2: two additions, rest unchanged)
 - `asset_metadata` 1—1 `stock/mutual_fund/bond_details`
 - `mutual_fund_details` N—1 `fund_houses`; M—N `fund_managers`
 - `asset_metadata` 1—1 `price_snapshot`; 1—N `price_history`; 1—N `asset_metrics`; 1—N `news_cache`
-- `asset_metadata` 1—N `holdings`, `transactions`, `sips`, `watchlist`
+- `asset_metadata` 1—N `holdings`, `transactions`, `sips`, `watchlist`, `market_index_constituents`
 - `holdings` 1—N `transactions`; `sips` 1—N `transactions`
 - `holdings` M—N `tags`
+- `transactions` 1—1 `wallet_ledger` entry (every BUY/SELL/DIVIDEND writes exactly one ledger row)
 
 ---
 
@@ -425,41 +553,96 @@ For each date D in range:
 ```
 current_yield = (coupon_rate × face_value) / current_price × 100
 # current_price here is the user's last MANUAL entry, not a live feed
-# YTM: solve numerically the same way as XIRR if you want it; optional, Phase 3
+# YTM: solve numerically the same way as XIRR if you want it — optional, low priority
 ```
+
+### 6.10 Wallet balance (v2)
+```
+wallet_balance = Σ wallet_ledger.amount
+# BUY      -> amount = −(quantity × price + fees)
+# SELL     -> amount = +(quantity × price − fees)
+# DIVIDEND -> amount = +dividend_amount
+# DEPOSIT / WITHDRAWAL -> user-entered, +/− respectively
+# A BUY that would take wallet_balance negative is REJECTED by the API, not clamped.
+```
+
+### 6.11 Historical Returns Calculator — "what if I had invested" (v2, Phase 9)
+```
+units_bought        = amount / price_history[asset, invest_date]   # nearest trading day if exact date missing
+current_value       = units_bought × latest_price
+absolute_return     = current_value − amount
+absolute_return_pct = (absolute_return / amount) × 100
+years_held          = (today − invest_date).days / 365
+CAGR                = (current_value / amount)^(1 / years_held) − 1
+# Single cashflow in, one cashflow out at today -> CAGR and XIRR are equivalent here,
+# no need to invoke pyxirr for this one.
+```
+
+### 6.12 SIP Calculator — two modes (v2, Phase 9)
+```
+# Mode A: Projected — assumed annual return, standard forward SIP formula
+FV = P × [ ((1 + r)^n − 1) / r ] × (1 + r)
+# P = monthly amount, r = assumed monthly rate (annual_rate / 12), n = number of months
+# Step-up variant (§6.13): re-apply this formula segment-by-segment across each
+# 12-month block with P increased by step_up_pct, then compound forward — no
+# closed form needed, a straightforward month-by-month loop is clearer and just
+# as fast at this scale.
+
+# Mode B: Historical backtest — uses REAL price_history, no assumed rate
+for each month m from start_date to end_date:
+    units_bought[m]  = monthly_amount[m] / price_history[asset, purchase_date(m)]
+    # monthly_amount[m] = base_amount, or base_amount compounded by step_up_pct
+    #                     every 12 months if step-up is enabled (§6.13)
+total_units     = Σ units_bought[m]
+total_invested  = Σ monthly_amount[m]
+current_value   = total_units × latest_price
+# Return: feed the real (date, −monthly_amount) cashflows + (today, +current_value)
+# into pyxirr.xirr() — same function as §6.6, reused here rather than reinvented.
+```
+
+### 6.13 Step-up / Top-up SIP Calculator (v2, Phase 9)
+Not a separate engine — it's `step_up_pct` applied to §6.12 (either mode): the
+monthly contribution increases by `step_up_pct` every 12 months. Called out as its
+own named calculator in the UI (a real, commonly-offered tool) even though it
+shares the same backend function with a non-zero `step_up_pct` parameter — don't
+build a second calculation engine for it.
 
 ---
 
 ## 7. REST API Specification
 
-### Core (Phase 1 — MVP)
+### Core (MVP endpoints)
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/api/portfolio` | List holdings (+ calculated fields) |
 | GET | `/api/portfolio/{id}` | One holding |
-| POST | `/api/portfolio` | Add holding |
-| PUT | `/api/portfolio/{id}` | Update holding |
-| DELETE | `/api/portfolio/{id}` | Remove holding |
+| ~~POST/PUT/DELETE `/api/portfolio`~~ | — | **Removed in v2.** Holdings are derived from transactions — see below. |
 | GET | `/api/health` | Health check |
 
-### Analytics & market (Phase 2–3)
+### Analytics, market, calculators
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/api/portfolio/summary` | Totals, P/L, day P/L, XIRR |
 | GET | `/api/portfolio/allocation?by=type\|sector\|holding` | Pie/donut data |
-| GET | `/api/portfolio/performance?period=1M` | Value-over-time series (from `price_history`) |
+| GET | `/api/portfolio/performance?period=1W\|1M\|6M\|1Y\|3Y\|5Y\|ALL` | Value-over-time series (from `price_history`; no intraday — see §4.2) |
 | GET | `/api/prices/{asset_id}` | Current price/NAV (from cache; `is_stale` flag if fallback) |
 | POST | `/api/prices/sync` | Manually trigger a price/NAV sync (also runs on schedule) |
 | PUT | `/api/prices/{asset_id}/manual` | Manual price update (bonds; also usable for anything if live sync fails) |
-| GET | `/api/prices/{asset_id}/history?period=1Y` | Chart data (from `price_history`) |
-| GET | `/api/market/movers` | Top gainers/losers, computed from cached `price_snapshot` |
+| GET | `/api/prices/{asset_id}/history?period=1D\|1W\|1M\|6M\|1Y\|3Y\|5Y\|ALL` | Chart data — `1D` is a live intraday call (stocks only), everything else from `price_history` (§4.2) |
+| GET | `/api/market/movers?scope=portfolio\|index` | **(v2)** `portfolio` = your holdings' day-change; `index` = the curated `market_index_constituents` basket |
 | GET | `/api/assets/{asset_id}` | Detail (fundamentals, about) |
 | GET | `/api/assets/{asset_id}/similar` | Similar assets (same type + sector/category, simple rule — not ML) |
-| GET/POST | `/api/transactions` | History / add |
+| GET | `/api/assets/search/live?q=&type=` | **(v2)** Dynamic universe search — `yf.Search` for stocks, mfapi.in `/mf/search` for MF |
+| POST | `/api/assets/resolve` | **(v2)** Given a live-search pick, create (or fetch) its `asset_metadata` + details + a full historical backfill into `price_history` (§4.2); returns `asset_id` for the BUY that follows |
+| GET/POST | `/api/transactions` | History / **the only way to BUY, SELL, or record a DIVIDEND** — drives holdings + wallet automatically (v2) |
 | GET/POST/DELETE | `/api/sips` | SIP plans (simulated, no auto-debit) |
 | GET/POST/DELETE | `/api/watchlist` | Bookmarks |
-| GET | `/api/search?q=` | Search across `asset_metadata` by symbol/name/ISIN |
+| GET | `/api/search?q=` | Search your *own* `asset_metadata` (already-added assets) — distinct from `/assets/search/live` above |
 | GET | `/api/news?asset_id=&limit=` | News feed, general if no `asset_id` |
+| GET | `/api/wallet` | **(v2)** Balance + ledger history |
+| POST | `/api/wallet/deposit`, `/api/wallet/withdraw` | **(v2)** Add/remove cash (simulated, no real payment) |
+| POST | `/api/calculators/historical-returns` | **(v2, Phase 9)** "What if I had invested" lumpsum backtest — §6.11 |
+| POST | `/api/calculators/sip` | **(v2, Phase 9)** SIP calculator — `mode=projected\|historical`, optional `step_up_pct` — §6.12, §6.13. Read-only, computes and returns, nothing persisted. |
 
 ### Standard error format (unchanged)
 ```json
@@ -516,6 +699,20 @@ trade dress.
 `Toast`, `Tabs` (segment tabs), `KpiCard` (animated counter + arrow), `DataTable`
 (sortable, colour-coded P/L column), `EmptyState`.
 
+### 8.5 Chart library split (v2)
+- **Recharts:** allocation donut, sector bar, SIP growth projection, portfolio
+  performance area chart, sparklines in table rows.
+- **lightweight-charts:** the Asset Detail candlestick/price chart specifically —
+  it's the one place a real trading-app chart (crosshair, OHLC tooltip, volume
+  histogram, pan/zoom) matters, and Recharts isn't built for it. Add the small
+  attribution notice + link to tradingview.com the license requires, in the page
+  footer or near the chart — one-time, not a big deal for a college project.
+- **Comparison overlay** (asset vs. a benchmark like Nifty 50, or asset vs. asset):
+  a Recharts line chart with two series is enough, no need for lightweight-charts.
+- **Allocation treemap** (Phase 12 richness): Recharts has a built-in Treemap —
+  use it for "allocation by holding" once there are more holdings than a donut can
+  read cleanly (roughly >6-8 slices).
+
 ---
 
 ## 9. Frontend Project Structure (new — original doc had none)
@@ -535,19 +732,28 @@ frontend/
 │   │   ├── transactions.js
 │   │   ├── prices.js
 │   │   ├── news.js
-│   │   └── search.js
+│   │   ├── search.js
+│   │   └── calculators.js           # (v2, Phase 9)
 │   ├── hooks/                       # useHoldings, usePrices, useDebouncedSearch...
 │   ├── components/
 │   │   ├── ui/                      # Button, Card, Modal, Skeleton, Toast, Badge, Tabs
 │   │   ├── layout/                  # Navbar, PageShell
-│   │   ├── charts/                  # PerformanceChart, AllocationDonut, SectorBar
-│   │   └── portfolio/               # HoldingsTable, AddHoldingModal, KpiCard
+│   │   ├── charts/                  # PerformanceChart, AllocationDonut, SectorBar,
+│   │   │                            # CandlestickChart (lightweight-charts), ComparisonChart,
+│   │   │                            # Sparkline, AllocationTreemap                       (v2)
+│   │   ├── search/                  # LiveAssetSearch — hits /assets/search/live, feeds Buy modal (v2)
+│   │   ├── wallet/                  # WalletBalance, DepositModal, WithdrawModal          (v2)
+│   │   ├── calculators/             # HistoricalReturnsForm, SipCalculatorForm (projected/
+│   │   │                            # historical toggle), StepUpSipForm, ResultSummary   (v2)
+│   │   └── portfolio/               # HoldingsTable, BuyModal, SellModal, KpiCard
 │   ├── pages/
 │   │   ├── Home.jsx
 │   │   ├── Portfolio.jsx
 │   │   ├── AssetDetail.jsx
 │   │   ├── Stocks.jsx / MutualFunds.jsx / Bonds.jsx
-│   │   └── Transactions.jsx
+│   │   ├── Transactions.jsx
+│   │   ├── News.jsx                 # (v2) dedicated news page, not just an Asset Detail tab
+│   │   └── Calculators.jsx          # (v2, Phase 9) tabs: Historical Returns / SIP / Step-up SIP
 │   ├── styles/
 │   │   └── theme.css                # §8.1 tokens
 │   └── utils/                       # currency/percent/date formatters
@@ -617,17 +823,18 @@ backend/
 | 3 | Holdings CRUD (MVP) + Swagger + Portfolio table page | 1, 2 |
 | 4 | Price/NAV sync service (yfinance, mfapi.in, manual for bonds) + resilience | 2 |
 | 5 | Analytics engine (P/L, allocation) + KPI cards + donut chart | 3, 4 |
-| 6 | Transactions + realised/unrealised P/L + weighted avg logic | 3, 4 |
-| 7 | Performance chart (portfolio value over time) | 4, 6 |
-| 8 | Segment pages + Asset Detail page | 3, 4 |
-| 9 | Watchlist, SIPs (simulated), tags, global search | 3 |
-| 10 | News integration (Marketaux/NewsData.io + cache) | 2 |
-| 11 | Home dashboard + full polish pass (motion, responsive, empty/error states) | 5, 7, 8, 10 |
-| **12** | **Recommendation / intelligence layer — LAST, do not build earlier** | everything above |
+| 6 | **(v2, expanded)** Wallet + dynamic asset search/resolve + historical backfill-on-resolve + transaction-only holdings (BUY/SELL replace direct edit) + realised/unrealised P/L + weighted avg | 3, 4 |
+| 7 | Performance chart (portfolio value over time, §6.8, no intraday — see §4.2) | 4, 6 |
+| 8 | Segment pages + Asset Detail page **(candlestick via lightweight-charts, full §4.2 periods incl. live 1D, comparison overlay)** | 3, 4, 6 |
+| **9** | **(v2, new)** Calculators — Historical Returns, SIP (projected + historical backtest), Step-up SIP — §6.11–§6.13 | 4, 6, 7 |
+| 10 | Watchlist, SIPs with explicit Lumpsum/SIP choice, tags, global search | 3, 6 |
+| 11 | News integration (dedicated News page + Asset Detail tab, both) | 2 |
+| 12 | Home dashboard (portfolio movers + curated-index movers, sparklines, treemap) + full polish pass | 5, 7, 8, 11 |
+| **13** | **Recommendation / intelligence layer — LAST, do not build earlier** | everything above |
 
 ---
 
-## 13. Guardrails for Phase 12 (Recommendation / Intelligence layer)
+## 13. Guardrails for Phase 13 (Recommendation / Intelligence layer)
 
 This phase is intentionally last and intentionally the most constrained:
 
