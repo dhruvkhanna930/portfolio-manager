@@ -312,7 +312,13 @@ def add_wallet_credit(request):
   if request.method == "POST":
     try:
       portfolio = Portfolio.objects.get(user=request.user)
-      amount = float(request.POST.get('amount', 0))
+      amount_str = request.POST.get('amount', '').strip()
+      if not amount_str:
+        return JsonResponse({"Error": "Please enter an amount"}, status=400)
+      try:
+        amount = float(amount_str)
+      except ValueError:
+        return JsonResponse({"Error": "Amount must be a valid number"}, status=400)
       if amount <= 0:
         return JsonResponse({"Error": "Amount must be greater than 0"}, status=400)
       portfolio.wallet_balance += amount

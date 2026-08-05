@@ -1232,6 +1232,13 @@
 
             $('#wallet-credit-form').submit(function(e) {
                 e.preventDefault();
+                var amount = $('#custom-amount').val().trim();
+
+                if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+                    alert("Please enter a valid amount (greater than 0)");
+                    return false;
+                }
+
                 var form = $(this);
                 var url = form.attr('action');
                 $.ajax({
@@ -1250,7 +1257,8 @@
                         }
                     },
                     error: function(xhr) {
-                        alert("Error adding credit");
+                        var errorData = JSON.parse(xhr.responseText);
+                        alert("Error adding credit: " + (errorData['Error'] || 'Unknown error'));
                     }
                 });
             });
