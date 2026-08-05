@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Plus, RefreshCw } from 'lucide-react'
-import { Button, Card, DataTable, EmptyState, KpiCard, Modal, Tabs, showToast } from '../components/ui'
+import { Button, Card, KpiCard, Tabs, showToast } from '../components/ui'
 import BuyModal from '../components/portfolio/BuyModal'
 import SellModal from '../components/portfolio/SellModal'
+import HoldingsTable, { toHoldingRows } from '../components/portfolio/HoldingsTable'
 import WalletBalance from '../components/wallet/WalletBalance'
 import AllocationDonut from '../components/charts/AllocationDonut'
 import PerformanceChart from '../components/charts/PerformanceChart'
@@ -12,7 +13,7 @@ import { useWallet } from '../hooks/useWallet'
 import { useCreateSip, useCreateTransaction } from '../hooks/useTransactions'
 import { useAllocation, usePortfolioSummary } from '../hooks/useAnalytics'
 import { getApiErrorMessage } from '../utils/apiError'
-import { formatCurrency, formatNumber, formatPercent } from '../utils/formatters'
+import { formatCurrency } from '../utils/formatters'
 
 const ALLOCATION_TABS = [
   { key: 'type', label: 'By Type' },
@@ -36,18 +37,7 @@ export default function Portfolio() {
 
   const walletBalance = wallet ? Number(wallet.balance) : 0
 
-  const rows = holdings.map((h) => ({
-    ...h,
-    name: h.asset.name,
-    type: h.asset.asset_type.replace('_', ' '),
-    quantity: Number(h.quantity),
-    avg_buy_price: Number(h.avg_buy_price),
-    current_value: Number(h.current_value),
-    weight_pct: Number(h.weight_pct),
-    profit_loss: h.is_priced ? Number(h.profit_loss) : null,
-    profit_loss_pct: h.is_priced ? Number(h.profit_loss_pct) : null,
-    day_change_value: h.is_priced ? Number(h.day_change_value) : null,
-  }))
+  const rows = toHoldingRows(holdings)
 
   const totalCurrent = summary ? Number(summary.total_current) : 0
   const dayPl = summary ? Number(summary.day_pl) : 0
@@ -112,77 +102,6 @@ export default function Portfolio() {
       onError: (error) => showToast.error(getApiErrorMessage(error, 'Price sync failed')),
     })
   }
-
-  const columns = [
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'type', label: 'Type', sortable: true },
-    {
-      key: 'quantity',
-      label: 'Qty',
-      align: 'right',
-      sortable: true,
-      render: (row) => formatNumber(row.quantity, { maximumFractionDigits: 4 }),
-    },
-    {
-      key: 'avg_buy_price',
-      label: 'Avg Cost',
-      align: 'right',
-      sortable: true,
-      render: (row) => formatNumber(row.avg_buy_price, { maximumFractionDigits: 2 }),
-    },
-    {
-      key: 'current_value',
-      label: 'Value',
-      align: 'right',
-      sortable: true,
-      render: (row) => formatCurrency(row.current_value),
-    },
-    {
-      key: 'profit_loss',
-      label: 'P/L',
-      align: 'right',
-      sortable: true,
-      pnl: true,
-      render: (row) =>
-        row.profit_loss == null ? (
-          '—'
-        ) : (
-          <span className="block leading-tight">
-            <span className="block">
-              {row.profit_loss >= 0 ? '+' : ''}
-              {formatCurrency(row.profit_loss)}
-            </span>
-            <span className="block text-xs opacity-70">{formatPercent(row.profit_loss_pct)}</span>
-          </span>
-        ),
-    },
-    {
-      key: 'day_change_value',
-      label: 'Day Chg',
-      align: 'right',
-      sortable: true,
-      pnl: true,
-      render: (row) =>
-        row.day_change_value == null
-          ? '—'
-          : `${row.day_change_value >= 0 ? '+' : ''}${formatCurrency(row.day_change_value)}`,
-    },
-    {
-      key: 'actions',
-      label: '',
-      align: 'right',
-      render: (row) => (
-        <div className="flex justify-end gap-2">
-          <Button size="sm" variant="secondary" onClick={() => openSell(row, false)}>
-            Sell
-          </Button>
-          <Button size="sm" variant="danger" onClick={() => openSell(row, true)}>
-            Sell all
-          </Button>
-        </div>
-      ),
-    },
-  ]
 
   return (
     <div>
@@ -268,21 +187,18 @@ export default function Portfolio() {
         </Card>
       </div>
 
-      {!isLoading && rows.length === 0 ? (
-        <div className="rounded border border-border bg-surface">
-          <EmptyState
-            title="No holdings yet"
-            description="Deposit some cash, then buy your first stock or mutual fund."
-            action={
-              <Button size="sm" onClick={() => setBuyOpen(true)}>
-                Buy an asset
-              </Button>
-            }
-          />
-        </div>
-      ) : (
-        <DataTable columns={columns} data={rows} loading={isLoading} getRowKey={(row) => row.holding_id} />
-      )}
+      <HoldingsTable
+        rows={rows}
+        loading={isLoading}
+        onSell={(row) => openSell(row, false)}
+        onSellAll={(row) => openSell(row, true)}
+        emptyDescription="Deposit some cash, then buy your first stock or mutual fund."
+        emptyAction={
+          <Button size="sm" onClick={() => setBuyOpen(true)}>
+            Buy an asset
+          </Button>
+        }
+      />
 
       <BuyModal
         open={buyOpen}

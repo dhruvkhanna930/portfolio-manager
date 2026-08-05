@@ -1,9 +1,12 @@
 import logging
-from datetime import date, datetime, timezone
+import math
+import time
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import requests
 import yfinance as yf
+from dateutil.relativedelta import relativedelta
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from models import AssetMetadata, PriceHistory, PriceSnapshot, db
@@ -19,6 +22,32 @@ _retry = retry(
     wait=wait_exponential(multiplier=1, min=1, max=8),
     reraise=True,
 )
+
+# §4.2: full period set for the per-asset chart. 1D is the only live call --
+# everything else is served from the price_history cache.
+HISTORY_PERIODS = ("1D", "1W", "1M", "6M", "1Y", "3Y", "5Y", "ALL")
+
+_HISTORY_PERIOD_DELTA = {
+    "1W": relativedelta(weeks=1),
+    "1M": relativedelta(months=1),
+    "6M": relativedelta(months=6),
+    "1Y": relativedelta(years=1),
+    "3Y": relativedelta(years=3),
+    "5Y": relativedelta(years=5),
+}
+
+_HISTORY_MAX_POINTS = {
+    "1W": 400,
+    "1M": 400,
+    "6M": 400,
+    "1Y": 400,
+    "3Y": 250,
+    "5Y": 250,
+    "ALL": 200,
+}
+
+INTRADAY_CACHE_TTL_SECONDS = 300
+_intraday_cache = {}  # asset_id -> (fetched_at_monotonic, points)
 
 
 class AssetNotFoundError(Exception):
@@ -283,3 +312,120 @@ def set_manual_price(asset_id, price):
     asset.last_synced_at = now
     db.session.commit()
     return snapshot
+
+
+def _downsample_points(points, max_points):
+    if len(points) <= max_points:
+        return points
+    stride = math.ceil(len(points) / max_points)
+    sampled = points[::stride]
+    if sampled[-1] is not points[-1]:
+        sampled.append(points[-1])
+    return sampled
+
+
+@_retry
+def _fetch_intraday(symbol):
+    frame = yf.Ticker(symbol).history(period="1d", interval="5m")
+    if frame is None or frame.empty:
+        raise PriceFetchError(f"No intraday data for {symbol}")
+    return [
+        {
+            "t": idx.to_pydatetime().isoformat(),
+            "open": _to_decimal(row["Open"]),
+            "high": _to_decimal(row["High"]),
+            "low": _to_decimal(row["Low"]),
+            "close": _to_decimal(row["Close"]),
+        }
+        for idx, row in frame.iterrows()
+    ]
+
+
+def _latest_vs_prev_close(asset):
+    """§4.2: mutual funds don't trade intraday, and bonds have no live feed at
+    all -- for both, "1D" is just latest NAV/price vs. previous close, two
+    points, not a faked curve. Sourced from the cached snapshot, no live call.
+    """
+    snapshot = db.session.get(PriceSnapshot, asset.asset_id)
+    if snapshot is None or snapshot.price is None:
+        return []
+
+    points = []
+    if snapshot.prev_close is not None and snapshot.as_of is not None:
+        # The exact date prev_close was recorded isn't tracked -- "as_of minus a
+        # day" is a labeled approximation for charting, not a real timestamp.
+        points.append(
+            {
+                "t": (snapshot.as_of - timedelta(days=1)).isoformat(),
+                "open": None,
+                "high": None,
+                "low": None,
+                "close": _to_decimal(snapshot.prev_close),
+                "label": "Prev Close",
+            }
+        )
+    points.append(
+        {
+            "t": snapshot.as_of.isoformat() if snapshot.as_of else datetime.now(timezone.utc).isoformat(),
+            "open": None,
+            "high": None,
+            "low": None,
+            "close": _to_decimal(snapshot.price),
+            "label": "Latest",
+        }
+    )
+    return points
+
+
+def get_price_history(asset_id, period="1M"):
+    """Chart data for the Asset Detail page, per §4.2 / §7. 1D is a live call
+    for stocks (cached in-process for a few minutes); everything else reads
+    price_history and never touches yfinance/mfapi.in.
+    """
+    if period not in HISTORY_PERIODS:
+        raise ValueError(f"invalid history period: {period}")
+
+    asset = db.session.get(AssetMetadata, asset_id)
+    if asset is None:
+        raise AssetNotFoundError(asset_id)
+
+    if period == "1D":
+        if asset.asset_type == "STOCK":
+            cached = _intraday_cache.get(asset_id)
+            now_ts = time.monotonic()
+            if cached and now_ts - cached[0] < INTRADAY_CACHE_TTL_SECONDS:
+                points = cached[1]
+            else:
+                try:
+                    points = _fetch_intraday(asset.symbol)
+                    _intraday_cache[asset_id] = (now_ts, points)
+                except Exception:
+                    logger.warning(
+                        "Intraday fetch failed for %s, falling back to latest vs prev close",
+                        asset.symbol,
+                        exc_info=True,
+                    )
+                    points = _latest_vs_prev_close(asset)
+        else:
+            points = _latest_vs_prev_close(asset)
+        return {"asset_id": asset_id, "period": period, "points": points}
+
+    end_date = date.today()
+    query = PriceHistory.query.filter(PriceHistory.asset_id == asset_id)
+    if period != "ALL":
+        start_date = end_date - _HISTORY_PERIOD_DELTA[period]
+        query = query.filter(PriceHistory.price_date >= start_date)
+    rows = query.order_by(PriceHistory.price_date).all()
+
+    points = [
+        {
+            "t": row.price_date.isoformat(),
+            "open": None,
+            "high": None,
+            "low": None,
+            "close": _to_decimal(row.close_price),
+        }
+        for row in rows
+    ]
+    points = _downsample_points(points, _HISTORY_MAX_POINTS[period])
+    return {"asset_id": asset_id, "period": period, "points": points}

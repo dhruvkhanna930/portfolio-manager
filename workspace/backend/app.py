@@ -30,6 +30,7 @@ def create_app(config_class=Config):
     from routes.sips import blp as sips_blp
     from routes.transactions import blp as transactions_blp
     from routes.wallet import blp as wallet_blp
+    from routes.watchlist import blp as watchlist_blp
 
     api.register_blueprint(health_blp)
     api.register_blueprint(portfolio_blp)
@@ -38,6 +39,7 @@ def create_app(config_class=Config):
     api.register_blueprint(wallet_blp)
     api.register_blueprint(transactions_blp)
     api.register_blueprint(sips_blp)
+    api.register_blueprint(watchlist_blp)
 
     if not app.config.get("TESTING") and (not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         from jobs.price_sync import start_price_sync_job
