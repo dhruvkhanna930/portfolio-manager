@@ -24,6 +24,7 @@ def create_app(config_class=Config):
     register_error_handlers(app)
 
     from routes.assets import blp as assets_blp
+    from routes.calculators import blp as calculators_blp
     from routes.health import blp as health_blp
     from routes.portfolio import blp as portfolio_blp
     from routes.prices import blp as prices_blp
@@ -40,6 +41,7 @@ def create_app(config_class=Config):
     api.register_blueprint(transactions_blp)
     api.register_blueprint(sips_blp)
     api.register_blueprint(watchlist_blp)
+    api.register_blueprint(calculators_blp)
 
     if not app.config.get("TESTING") and (not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         from jobs.price_sync import start_price_sync_job

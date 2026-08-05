@@ -306,3 +306,226 @@ def compute_weighted_avg_buy_price(old_qty, old_avg, buy_qty, buy_price):
     if new_qty == 0:
         return Decimal("0")
     return (old_qty * old_avg + buy_qty * buy_price) / new_qty
+
+
+def historical_returns_calc(asset_id, invest_date, amount):
+    """Historical Returns Calculator per CLAUDE.md §6.11: 'What if I had invested?'
+    Given an asset, a past date, and an amount, looks up the actual price on or near
+    that date from price_history, computes units bought, current value, returns.
+    """
+    from models import AssetMetadata, PriceHistory
+
+    asset = AssetMetadata.query.get(asset_id)
+    if not asset:
+        raise ValueError(f"asset {asset_id} not found")
+
+    snapshot = asset.price_snapshot
+    if not snapshot or snapshot.price is None:
+        raise ValueError(f"asset {asset_id} has no current price")
+
+    current_price = Decimal(snapshot.price)
+    current_date = snapshot.as_of.date() if snapshot.as_of else date.today()
+
+    # Find the closest price_history row on or before invest_date
+    price_row = (
+        PriceHistory.query.filter(
+            PriceHistory.asset_id == asset_id,
+            PriceHistory.price_date <= invest_date,
+        )
+        .order_by(PriceHistory.price_date.desc())
+        .first()
+    )
+
+    if not price_row:
+        raise ValueError(f"no price history found for {asset_id} on or before {invest_date}")
+
+    invest_price = Decimal(price_row.close_price)
+    units_bought = Decimal(amount) / invest_price
+    current_value = units_bought * current_price
+    absolute_return = current_value - Decimal(amount)
+
+    years_held = (current_date - invest_date).days / 365.0
+    if years_held <= 0:
+        cagr = Decimal("0")
+    else:
+        cagr_float = ((float(current_value) / float(amount)) ** (1.0 / years_held)) - 1.0
+        cagr = Decimal(str(cagr_float))
+
+    return {
+        "invested_amount": Decimal(amount),
+        "invest_date": invest_date,
+        "invest_price": invest_price,
+        "units_bought": units_bought,
+        "current_price": current_price,
+        "current_date": current_date,
+        "current_value": current_value,
+        "absolute_return": absolute_return,
+        "absolute_return_pct": (absolute_return / Decimal(amount) * 100) if amount else Decimal("0"),
+        "years_held": Decimal(str(years_held)),
+        "cagr_pct": cagr * 100,
+    }
+
+
+def sip_calc_projected(monthly_amount, annual_return_pct, years, step_up_pct=None):
+    """SIP Calculator (Projected mode) per CLAUDE.md §6.12 Mode A.
+    Standard forward compounding: FV = P × [ ((1 + r)^n − 1) / r ] × (1 + r)
+    With optional step_up_pct: monthly amount increases by step_up_pct annually.
+    """
+    monthly_amount = Decimal(monthly_amount)
+    annual_return_pct = Decimal(annual_return_pct)
+    years = Decimal(years)
+    step_up_pct = Decimal(step_up_pct) if step_up_pct else Decimal("0")
+
+    monthly_rate = annual_return_pct / 100 / 12
+    months = int(years * 12)
+
+    if monthly_rate == 0:
+        # No growth: FV = P × n
+        total_invested = monthly_amount * months
+        final_value = total_invested
+        xirr_equivalent = Decimal("0")
+    else:
+        # Standard formula with step-up: month-by-month loop
+        total_invested = Decimal("0")
+        final_value = Decimal("0")
+
+        for month in range(1, months + 1):
+            # Apply step-up: every 12 months, increase the base amount
+            years_elapsed = (month - 1) // 12
+            step_multiplier = (1 + step_up_pct / 100) ** years_elapsed
+            monthly_pay = monthly_amount * step_multiplier
+
+            total_invested += monthly_pay
+            # Compound forward to end-of-period
+            remaining_months = months - month
+            growth_factor = (1 + monthly_rate) ** remaining_months
+            final_value += monthly_pay * growth_factor
+
+        # XIRR approximation: assume linear cashflows for projected mode
+        # (real XIRR would need pyxirr, which requires actual dates)
+        if total_invested > 0:
+            ratio = float(final_value / total_invested)
+            xirr_float = ((ratio) ** (1.0 / float(years)) - 1.0) * 100.0
+            xirr_equivalent = Decimal(str(xirr_float))
+        else:
+            xirr_equivalent = Decimal("0")
+
+    return {
+        "mode": "projected",
+        "monthly_amount": monthly_amount,
+        "step_up_pct": step_up_pct,
+        "annual_return_pct": annual_return_pct,
+        "years": years,
+        "months": months,
+        "total_invested": total_invested,
+        "final_value": final_value,
+        "total_return": final_value - total_invested,
+        "total_return_pct": (final_value - total_invested) / total_invested * 100 if total_invested else Decimal("0"),
+    }
+
+
+def sip_calc_historical(asset_id, monthly_amount, start_date, end_date=None, step_up_pct=None):
+    """SIP Calculator (Historical mode) per CLAUDE.md §6.12 Mode B.
+    Walks real price_history month-by-month, computing units bought and final XIRR.
+    """
+    from models import AssetMetadata, PriceHistory
+
+    try:
+        from pyxirr import xirr
+    except ImportError:
+        raise ImportError("pyxirr is required for historical SIP calculation")
+
+    asset = AssetMetadata.query.get(asset_id)
+    if not asset:
+        raise ValueError(f"asset {asset_id} not found")
+
+    snapshot = asset.price_snapshot
+    if not snapshot or snapshot.price is None:
+        raise ValueError(f"asset {asset_id} has no current price")
+
+    current_price = Decimal(snapshot.price)
+    current_date = snapshot.as_of.date() if snapshot.as_of else date.today()
+
+    if end_date is None:
+        end_date = current_date
+
+    monthly_amount = Decimal(monthly_amount)
+    step_up_pct = Decimal(step_up_pct) if step_up_pct else Decimal("0")
+
+    # Collect all price_history rows in range
+    price_rows = (
+        PriceHistory.query.filter(
+            PriceHistory.asset_id == asset_id,
+            PriceHistory.price_date >= start_date,
+            PriceHistory.price_date <= end_date,
+        )
+        .order_by(PriceHistory.price_date)
+        .all()
+    )
+
+    if not price_rows:
+        raise ValueError(f"no price history found for {asset_id} between {start_date} and {end_date}")
+
+    # Walk month by month
+    cashflows = []  # (date, amount) for XIRR
+    total_invested = Decimal("0")
+    total_units = Decimal("0")
+    current_month_year = start_date.replace(day=1)
+    month_idx = 0
+
+    while current_month_year <= end_date:
+        # Find first price in this calendar month
+        month_start = current_month_year
+        month_end = (current_month_year + relativedelta(months=1)) - relativedelta(days=1)
+
+        price_in_month = None
+        price_date_in_month = None
+        for pr in price_rows:
+            if month_start <= pr.price_date <= month_end:
+                price_in_month = Decimal(pr.close_price)
+                price_date_in_month = pr.price_date
+                break
+
+        if price_in_month is not None:
+            # Calculate this month's investment (with step-up)
+            years_elapsed = month_idx // 12
+            step_multiplier = (1 + step_up_pct / 100) ** years_elapsed
+            this_month_amount = monthly_amount * step_multiplier
+
+            units_this_month = this_month_amount / price_in_month
+            total_invested += this_month_amount
+            total_units += units_this_month
+
+            # Record cashflow for XIRR (negative = money out)
+            cashflows.append((price_date_in_month, -float(this_month_amount)))
+
+        current_month_year += relativedelta(months=1)
+        month_idx += 1
+
+    # Current value and XIRR
+    current_value = total_units * current_price
+    cashflows.append((current_date, float(current_value)))
+
+    try:
+        xirr_result = xirr(cashflows)
+        xirr_pct = Decimal(str(xirr_result * 100))
+    except Exception:
+        # If xirr fails (e.g., all same sign), return None
+        xirr_pct = None
+
+    return {
+        "mode": "historical",
+        "asset_id": asset_id,
+        "monthly_amount": monthly_amount,
+        "step_up_pct": step_up_pct,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_invested": total_invested,
+        "total_units": total_units,
+        "current_price": current_price,
+        "current_date": current_date,
+        "current_value": current_value,
+        "total_return": current_value - total_invested,
+        "total_return_pct": (current_value - total_invested) / total_invested * 100 if total_invested else Decimal("0"),
+        "xirr_pct": xirr_pct,
+    }
