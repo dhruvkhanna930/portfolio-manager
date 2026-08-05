@@ -27,6 +27,7 @@ from .asset import (  # noqa: E402,F401
 )
 from .price import AssetMetric, PriceHistory, PriceSnapshot  # noqa: E402,F401
 from .news import NewsCache  # noqa: E402,F401
+from .market import MarketIndexConstituent  # noqa: E402,F401
 from .portfolio import (  # noqa: E402,F401
     Holding,
     HoldingTag,

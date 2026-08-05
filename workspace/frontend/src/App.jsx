@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import Styleguide from './pages/Styleguide'
 import Calculators from './pages/Calculators'
-import ComingSoon from './pages/ComingSoon'
+import Home from './pages/Home'
 import Portfolio from './pages/Portfolio'
 import Transactions from './pages/Transactions'
 import AssetTypePage from './pages/AssetTypePage'
@@ -14,7 +14,7 @@ function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<ComingSoon title="Home" />} />
+        <Route path="/" element={<Home />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/transactions" element={<Transactions />} />
         <Route

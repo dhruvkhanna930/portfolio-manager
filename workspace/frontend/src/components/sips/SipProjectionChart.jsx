@@ -75,7 +75,7 @@ export default function SipProjectionChart({ sip, annualReturnPct, years, stepUp
 
   return (
     <div>
-      <div className="mb-3 grid grid-cols-3 gap-3 text-sm">
+      <div className="mb-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
           <p className="text-text-muted text-xs">Total Invested</p>
           <p className="tabular-nums font-medium text-text-primary">

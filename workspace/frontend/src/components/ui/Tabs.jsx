@@ -5,7 +5,7 @@ export default function Tabs({ tabs, value, onChange, className }) {
     <div
       role="tablist"
       className={cn(
-        'inline-flex items-center gap-1 rounded border border-border bg-surface p-1',
+        'flex max-w-full items-center gap-1 overflow-x-auto rounded border border-border bg-surface p-1',
         className
       )}
     >
@@ -18,7 +18,7 @@ export default function Tabs({ tabs, value, onChange, className }) {
             aria-selected={active}
             onClick={() => onChange?.(tab.key)}
             className={cn(
-              'rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150',
+              'shrink-0 rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150',
               active
                 ? 'bg-accent text-bg'
                 : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'

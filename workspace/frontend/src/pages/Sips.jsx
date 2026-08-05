@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Button, EmptyState, showToast } from '../components/ui'
+import { Button, EmptyState, Skeleton, showToast } from '../components/ui'
 import BuyModal from '../components/portfolio/BuyModal'
 import SipCard from '../components/sips/SipCard'
 import { useSips } from '../hooks/useSips'
@@ -41,7 +41,13 @@ export default function Sips() {
         </Button>
       </div>
 
-      {!isLoading && sips.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-full rounded" />
+          ))}
+        </div>
+      ) : sips.length === 0 ? (
         <div className="rounded border border-border bg-surface">
           <EmptyState
             title="No SIP plans yet"
