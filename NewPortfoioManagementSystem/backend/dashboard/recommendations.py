@@ -290,8 +290,8 @@ def recommend_stocks(portfolio, num_recommendations=10, use_ai=True):
         holding_companies = StockHolding.objects.filter(portfolio=portfolio)
 
         if not holding_companies.exists():
-            print("No holdings in portfolio")
-            return []
+            print("No holdings in portfolio - using FALLBACK (popular stocks)")
+            return recommend_popular_stocks(num_recommendations, use_ai=use_ai)
 
         user_stock_symbols = [h.company_symbol for h in holding_companies]
         print(f"Portfolio stocks: {user_stock_symbols}")
@@ -361,8 +361,8 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10, use_ai=Tru
         holding_companies = StockHolding.objects.filter(portfolio=portfolio)
 
         if not holding_companies.exists():
-            print("No holdings for complementary recommendations")
-            return []
+            print("No holdings for complementary recommendations - using FALLBACK (popular stocks)")
+            return recommend_popular_stocks(num_recommendations, use_ai=use_ai)
 
         user_sectors = [h.sector for h in holding_companies if h.sector]
         portfolio_avg_beta = 0
@@ -431,6 +431,54 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10, use_ai=Tru
         import traceback
         traceback.print_exc()
         return []
+
+
+def recommend_popular_stocks(num_recommendations=10, use_ai=True):
+    """Fallback: Recommend popular stocks for cold-start users (no portfolio history)"""
+    print(f"\n[COLD-START FALLBACK] No portfolio found - recommending top {num_recommendations} popular stocks\n")
+
+    popular_list = get_popular_stocks_list()
+    recommendations = []
+
+    for symbol in popular_list[:num_recommendations * 2]:
+        try:
+            fundamentals = get_stock_fundamentals(symbol)
+            if fundamentals:
+                ticker = yf.Ticker(symbol)
+                info = ticker.info
+
+                market_cap = float(info.get('marketCap', 0)) or 0
+                pe_ratio = float(info.get('trailingPE', 0)) or 0
+
+                popularity_score = min((market_cap / 1e12) * 100, 100)
+                quality_score = min(100 / (pe_ratio + 1), 100) if pe_ratio > 0 else 50
+
+                rule_score = (popularity_score * 0.6 + quality_score * 0.4)
+                fundamentals['rule_score'] = round(rule_score, 2)
+                fundamentals['source'] = 'cold_start_fallback'
+                recommendations.append(fundamentals)
+        except Exception as e:
+            print(f"Error with {symbol}: {e}")
+            continue
+
+    if use_ai:
+        print("Computing AI model scores for popular stocks...")
+        ai_scores = compute_ai_model_scores([r['symbol'] for r in recommendations])
+        for rec in recommendations:
+            if rec['symbol'] in ai_scores:
+                ai_data = ai_scores[rec['symbol']]
+                rec['ai_sentiment'] = round(ai_data['sentiment'], 2)
+                rec['ai_forecast'] = round(ai_data['forecast'], 2)
+                rec['final_score'] = round(
+                    blend_scores(rec['rule_score'], ai_data['combined'], has_history=False), 3
+                )
+            else:
+                rec['final_score'] = rec['rule_score']
+
+        recommendations.sort(key=lambda x: x.get('final_score', x['rule_score']), reverse=True)
+
+    print(f"[FALLBACK] Returning {len(recommendations[:num_recommendations])} popular stock recommendations")
+    return recommendations[:num_recommendations]
 
 
 def get_popular_stocks_list():
