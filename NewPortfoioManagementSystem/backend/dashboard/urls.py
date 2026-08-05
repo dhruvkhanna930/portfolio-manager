@@ -3,9 +3,10 @@ from . import views
 
 urlpatterns = [
     path('dashboard', views.dashboard, name='dashboard'),
+    path('profile', views.profile, name='profile'),
     path('company-list', views.send_company_list, name="company-list"),
     path('update-prices', views.update_values, name="update-prices"),
-    path('get-financials', views.get_financials, name="update-prices"),
+    path('get-financials', views.get_financials, name="get-financials"),
     path('add-holding', views.add_holding, name="add-holding"),
     path('portfolio-summary', views.portfolio_summary, name="portfolio-summary"),
     path('get-portfolio-insights', views.get_portfolio_insights, name="get-portfolio-insights"),
