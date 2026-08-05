@@ -43,6 +43,9 @@ export default function SipCard({ sip }) {
             <Badge tone={sip.is_active ? 'positive' : 'neutral'}>
               {sip.is_active ? 'Active' : 'Paused'}
             </Badge>
+            <Badge tone="neutral" title="Planning tool only — doesn't affect your wallet or holdings">
+              Simulated
+            </Badge>
           </div>
           <p className="mt-1 text-sm text-text-secondary">
             {formatCurrency(sip.amount)} · {sip.frequency.charAt(0) + sip.frequency.slice(1).toLowerCase()} · since{' '}

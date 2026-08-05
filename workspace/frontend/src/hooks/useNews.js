@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchAssetNews, fetchGeneralNews } from '../api/news'
 
 const GENERAL_NEWS_KEY = ['news', 'general']
@@ -17,5 +17,21 @@ export function useAssetNews(assetId, limit = 20) {
     queryKey: ASSET_NEWS_KEY(assetId),
     queryFn: () => fetchAssetNews(assetId, limit),
     staleTime: 1800_000,
+  })
+}
+
+export function useRefreshGeneralNews(limit = 20) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => fetchGeneralNews(limit, true),
+    onSuccess: (data) => queryClient.setQueryData(GENERAL_NEWS_KEY, data),
+  })
+}
+
+export function useRefreshAssetNews(assetId, limit = 20) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => fetchAssetNews(assetId, limit, true),
+    onSuccess: (data) => queryClient.setQueryData(ASSET_NEWS_KEY(assetId), data),
   })
 }

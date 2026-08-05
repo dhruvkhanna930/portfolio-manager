@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta
 import requests
 from models import db, NewsCache, AssetMetadata
@@ -8,32 +9,69 @@ class NewsProviderError(Exception):
     pass
 
 
-def _get_newsdata_headlines(q=None, limit=20):
-    """Fetch from NewsData.io free tier (100 req/day). q is search query (symbol, fund name, etc)"""
+def _get_newsdata_headlines(q=None, limit=20, title_only=False):
+    """Fetch from NewsData.io free tier (200 req/day). q is search query (symbol, fund name, etc).
+
+    The free tier ignores/rejects a `size` param (paid-tier only -- passing it
+    made every call return status="error" and silently fall back to whatever
+    was already cached, which is why the feed looked stuck at a handful of
+    articles). Free tier always returns a fixed page of 10, so to honor `limit`
+    we page through `nextPage` cursors until we have enough or run out.
+
+    `title_only` sends `qInTitle` instead of `q` -- NewsData.io's plain `q`
+    does a loose full-text match across the whole article body, which for a
+    specific company/fund name mostly returns unrelated noise (verified: `q`
+    for "RELIANCE" pulled in China/BSE/EV-charging stories that don't mention
+    it in the title at all). `qInTitle` requires the term to actually be in
+    the headline, which is what "news about this asset" should mean.
+    """
     api_key = os.getenv("NEWS_API_KEY", "").strip()
     if not api_key:
         raise NewsProviderError("NEWS_API_KEY not configured")
 
     url = "https://newsdata.io/api/1/news"
-    params = {
+    base_params = {
         "apikey": api_key,
         "language": "en",
         "country": "in",
         "category": "business",
-        "size": min(limit, 50),  # newsdata max is 50 per request
     }
     if q:
-        params["q"] = q
+        base_params["qInTitle" if title_only else "q"] = q
 
-    try:
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
+    articles = []
+    next_page = None
+    max_pages = 6  # 6 * 10 = up to 60 articles, plenty of headroom over any realistic `limit`
+
+    for _ in range(max_pages):
+        if len(articles) >= limit:
+            break
+        params = dict(base_params)
+        if next_page:
+            params["page"] = next_page
+        try:
+            resp = requests.get(url, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.exceptions.RequestException as e:
+            if articles:
+                break  # keep whatever we already fetched rather than discarding it
+            raise NewsProviderError(f"NewsData.io request failed: {e}")
+
         if data.get("status") == "error":
-            raise NewsProviderError(f"NewsData.io error: {data.get('message', 'unknown')}")
-        return data.get("results", [])
-    except requests.exceptions.RequestException as e:
-        raise NewsProviderError(f"NewsData.io request failed: {e}")
+            message = data.get("results", {}).get("message", "unknown") if isinstance(
+                data.get("results"), dict
+            ) else data.get("message", "unknown")
+            if articles:
+                break
+            raise NewsProviderError(f"NewsData.io error: {message}")
+
+        articles.extend(data.get("results", []))
+        next_page = data.get("nextPage")
+        if not next_page:
+            break
+
+    return articles[:limit]
 
 
 def _normalize_newsdata_article(article):
@@ -129,23 +167,55 @@ def fetch_asset_news(asset_id, limit=20, force_refresh=False):
         if cached and (datetime.utcnow() - cached[0].fetched_at).total_seconds() < 3600:
             return cached
 
-    # Determine search query
+    # Determine search query. Verified against the live API: the ticker symbol
+    # (e.g. "TATAELXSI", "HDFCBANK", "BAJFINANCE") almost never appears in a
+    # real headline -- those are written with the spaced-out company name
+    # ("Tata Elxsi", "HDFC Bank"). qInTitle=HDFCBANK returned 0 results;
+    # qInTitle="HDFC Bank" returned 31. So we search on the cleaned name, not
+    # the ticker.
     if asset.asset_type == "STOCK":
-        # Search by symbol (e.g. "RELIANCE" from "RELIANCE.NS")
-        query = asset.symbol.split(".")[0]
+        clean_name = re.sub(r"\s+(Ltd\.?|Limited)\s*$", "", asset.name, flags=re.IGNORECASE).strip()
     elif asset.asset_type == "MUTUAL_FUND":
-        # Search by fund name
-        query = asset.name
+        # The full scheme name (e.g. "ICICI Prudential Balanced Advantage Fund
+        # - Direct - Growth") is too specific to ever appear verbatim in a
+        # headline -- qInTitle with the full name returns zero results.
+        # Fund house name is what news actually gets written about; strip the
+        # generic "Mutual Fund" suffix to keep it a tight search term.
+        fund_house = None
+        if asset.mutual_fund_details and asset.mutual_fund_details.fund_house:
+            fund_house = asset.mutual_fund_details.fund_house.name
+        clean_name = (fund_house or asset.name).replace(" Mutual Fund", "").strip()
     else:
         # Bonds: no specific news
-        query = None
+        clean_name = None
 
-    if not query:
+    if not clean_name:
         return []
 
-    # Fetch fresh
+    # Fetch fresh, from most to least precise, stopping at the first tier that
+    # actually returns something rather than always taking the loosest match:
+    #   1. qInTitle, first two words   -- e.g. "HDFC Bank", "Bajaj Finance"
+    #   2. qInTitle, first word only   -- broader ("Reliance", "HDFC"); can be
+    #      generic for group names like "Tata", but still finance headlines
+    #   3. plain q (full-text, not just title), first two words -- last resort
+    words = clean_name.split()
+    two_word = " ".join(words[:2])
+    one_word = words[0]
+    attempts = [
+        (two_word, True),
+        (one_word, True) if one_word != two_word else None,
+        (two_word, False),
+    ]
+
     try:
-        articles = _get_newsdata_headlines(q=query, limit=limit)
+        articles = []
+        for attempt in attempts:
+            if attempt is None:
+                continue
+            term, title_only = attempt
+            articles = _get_newsdata_headlines(q=term, limit=limit, title_only=title_only)
+            if articles:
+                break
     except NewsProviderError:
         # Fall back to stale cache
         return (

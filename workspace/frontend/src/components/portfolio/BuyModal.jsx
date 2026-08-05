@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { Button, Input, Modal, Select, Tabs } from '../ui'
 import LiveAssetSearch from './LiveAssetSearch'
 import { resolveAsset } from '../../api/assets'
+import { usePrice } from '../../hooks/usePrices'
 import { formatCurrency } from '../../utils/formatters'
 import { getApiErrorMessage } from '../../utils/apiError'
 
@@ -46,6 +47,24 @@ export default function BuyModal({
   const [startDate, setStartDate] = useState(today)
 
   const resolve = useMutation({ mutationFn: resolveAsset })
+
+  const isToday = txnDate === today()
+  const {
+    data: liveQuote,
+    isFetching: priceFetching,
+    refetch: refetchPrice,
+  } = usePrice(selected?.asset_id)
+
+  // Buying "today" should reflect a real market order -- the price isn't
+  // something to guess, it's whatever the asset is trading at right now.
+  // Backdating (txn_date in the past, for logging a real past purchase) is
+  // the one case that still needs a manually-entered price, since this form
+  // doesn't look up historical prices for an arbitrary past date.
+  useEffect(() => {
+    if (selected && isToday && liveQuote?.price != null) {
+      setPrice(String(liveQuote.price))
+    }
+  }, [selected?.asset_id, liveQuote?.price, isToday])
 
   useEffect(() => {
     if (!open) {
@@ -197,18 +216,45 @@ export default function BuyModal({
                   label={isMutualFund ? 'Units' : 'Quantity'}
                   type="number"
                   step="any"
+                  autoFocus
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
                 />
-                <Input
-                  id="price"
-                  label={isMutualFund ? 'NAV (₹)' : 'Price (₹)'}
-                  type="number"
-                  step="any"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                />
+                <div className="w-full">
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <label htmlFor="price" className="block text-sm text-text-secondary">
+                      {isMutualFund ? 'NAV (₹)' : 'Price (₹)'}
+                    </label>
+                    {isToday && (
+                      <button
+                        type="button"
+                        onClick={() => refetchPrice()}
+                        disabled={priceFetching}
+                        className="flex items-center gap-1 text-xs text-accent hover:text-accent-hover disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${priceFetching ? 'animate-spin' : ''}`} />
+                        {priceFetching ? 'Updating…' : 'Live'}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="price"
+                    type="number"
+                    step="any"
+                    value={price}
+                    readOnly={isToday}
+                    onChange={(e) => !isToday && setPrice(e.target.value)}
+                    className={`h-10 w-full rounded border border-border px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent ${
+                      isToday ? 'cursor-not-allowed bg-surface-hover' : 'bg-surface'
+                    }`}
+                  />
+                </div>
               </div>
+              <p className="-mt-2 text-xs text-text-muted">
+                {isToday
+                  ? "Priced at today's market rate, just like a real market order. Pick a past date below to log a historical purchase at a price you enter."
+                  : 'Backdated purchase — enter the price it actually traded at on this date.'}
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 <Input
                   id="fees"
@@ -222,6 +268,7 @@ export default function BuyModal({
                   id="txn_date"
                   label="Date"
                   type="date"
+                  max={today()}
                   value={txnDate}
                   onChange={(e) => setTxnDate(e.target.value)}
                 />

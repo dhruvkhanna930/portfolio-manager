@@ -4,6 +4,7 @@ from marshmallow import Schema, fields, validate
 class NewsQuerySchema(Schema):
     asset_id = fields.Integer(allow_none=True, load_default=None)
     limit = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
+    refresh = fields.Boolean(load_default=False)
 
 
 class NewsSchema(Schema):
