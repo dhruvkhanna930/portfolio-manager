@@ -24,7 +24,7 @@ def dashboard(request):
   if RiskProfile.objects.filter(user=request.user).exists():
     try:
       portfolio = Portfolio.objects.get(user=request.user)
-    except:
+    except Portfolio.DoesNotExist:
       portfolio = Portfolio.objects.create(user=request.user)
     portfolio.update_investment()
     holding_companies = StockHolding.objects.filter(portfolio=portfolio)
@@ -69,7 +69,7 @@ def dashboard(request):
 
     return render(request, 'dashboard/dashboard.html', context)
   else:
-    return redirect(risk_profile)
+    return redirect('risk-profile')
 
 
 def get_portfolio_insights(request):
@@ -160,9 +160,16 @@ def portfolio_summary(request):
   return JsonResponse(summary)
 
 
+@login_required
+def profile(request):
+  risk_profile = RiskProfile.objects.filter(user=request.user).first()
+  return render(request, 'dashboard/profile.html', {
+    'risk_profile': risk_profile,
+  })
+
+
 def add_holding(request):
   if request.method == "POST":
-    print(get_alphavantage_key())
     try:
       portfolio = Portfolio.objects.get(user=request.user)
       holding_companies = StockHolding.objects.filter(portfolio=portfolio)
@@ -197,10 +204,11 @@ def add_holding(request):
       return HttpResponse("Success")
     except Exception as e:
       print(e)
-      return HttpResponse(e)
+      return HttpResponse("Error adding holding", status=400)
 
 def send_company_list(request):
-  with open('nasdaq-listed.csv') as csv_file:
+  csv_path = os.path.join(os.path.dirname(__file__), '..', 'nasdaq-listed.csv')
+  with open(csv_path) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     rows = []

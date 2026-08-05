@@ -4,6 +4,7 @@ from flask_migrate import Migrate
 from flask_smorest import Api
 
 from config import Config
+from errors import register_error_handlers
 from models import db
 
 migrate = Migrate()
@@ -18,10 +19,15 @@ def create_app(config_class=Config):
     CORS(app)
 
     api = Api(app)
+    register_error_handlers(app)
 
+    from routes.assets import blp as assets_blp
     from routes.health import blp as health_blp
+    from routes.portfolio import blp as portfolio_blp
 
     api.register_blueprint(health_blp)
+    api.register_blueprint(portfolio_blp)
+    api.register_blueprint(assets_blp)
 
     return app
 

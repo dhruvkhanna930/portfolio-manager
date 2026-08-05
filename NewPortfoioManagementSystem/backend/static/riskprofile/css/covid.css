@@ -402,8 +402,37 @@
   -webkit-box-direction: normal;
   -ms-flex-direction: column;
   flex-direction: column;
-  min-height: 320px;
+  min-height: auto;
   margin-top: 30px;
+}
+.covid-test-wrap .step-block .button,
+.covid-test-wrap .step-block .submit-button {
+  margin-top: 30px;
+  width: 100%;
+  max-width: 260px;
+  padding: 18px 30px;
+  border-radius: 35px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: #1e85ff;
+  text-align: center;
+}
+
+.covid-test-wrap .step-block .form-group {
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.covid-test-wrap .step-block .form-group label {
+  width: 100%;
+  display: block;
+  text-align: left;
+  padding: 18px 22px;
+  background: #f7fbff;
+  border-radius: 18px;
+  border: 1px solid rgba(30, 133, 255, 0.12);
+  color: #1c2437;
 }
 
 .covid-test-wrap .step-block .form-group {
@@ -502,11 +531,16 @@
   width: 100%;
   border: 2px solid rgba(0, 0, 0, 0.1);
   border-radius: 30px;
-  padding: 12px 25px;
-  font-size: 1.5rem;
+  padding: 18px 25px;
+  font-size: 1.4rem;
   font-family: "Roboto", sans-serif;
   color: #1c2437;
-  text-align: center;
+  text-align: left;
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  white-space: normal;
+  line-height: 1.4;
   font-weight: 700;
   position: relative;
   -webkit-transition: all .3s ease;
@@ -543,17 +577,22 @@
 }
 
 .covid-test-wrap .step-block .button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
   font-size: 1.5rem;
   font-weight: 700;
   color: #ffffff;
   background: #1e85ff;
   width: 100%;
+  max-width: 280px;
+  padding: 0 28px;
   font-family: "Roboto", sans-serif;
   border-radius: 30px;
   height: 60px;
   border: 0;
   text-align: center;
-  margin-top: auto;
+  margin-top: 20px;
   outline: none;
   -webkit-box-shadow: none;
   box-shadow: none;
