@@ -1,2 +1,0 @@
-class ProductSchema:
-    pass
