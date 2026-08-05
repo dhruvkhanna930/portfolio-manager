@@ -1198,27 +1198,6 @@
 
         <!-- Script for submitting the form with AJAX -->
         <script>
-            function addStockHoldingResult(data) {
-                if (data === "Success") {
-                    $('#myModal').modal('toggle');
-                    alert("Stock Holding successfully added to your portfolio");
-                    location.reload();
-                } else {
-                    alert("Error adding the stock holding\n"); // + "Message: " + data);
-                }
-            }
-
-            $("#add-holding-form").submit(function(e) {
-                e.preventDefault(); // avoid to execute the actual submit of the form.
-                var form = $(this);
-                var url = form.attr('action');
-                $.ajax({
-                    type: "POST",
-                    url: url,
-                    data: form.serialize(),
-                    success: function(data) { addStockHoldingResult(data) }
-                });
-            });
         </script>
 
         <!-- Wallet Credit Management -->
@@ -1340,33 +1319,38 @@
                 });
             }
 
-            // Modify the add-holding-form to add to cart instead of direct purchase
-            $("#add-holding-form").submit(function(e) {
-                e.preventDefault();
-                var form = $(this);
-                $.ajax({
-                    type: "POST",
-                    url: "/cart-add",
-                    data: form.serialize(),
-                    dataType: "json",
-                    success: function(data) {
-                        if (data.hasOwnProperty('Success') && data['Success']) {
-                            cartItems.push(data['Item']);
-                            updateCartDisplay();
-                            $('#myModal').modal('toggle');
-                            $('#myModal form')[0].reset();
-                            getDate();
-                            // Open cart modal
-                            $('#cartModal').modal('show');
-                            alert("Item added to cart!");
-                        } else {
-                            alert("Error: " + data['Error']);
+            // Handle add-holding-form to add to cart instead of direct purchase
+            $(document).ready(function() {
+                $("#add-holding-form").submit(function(e) {
+                    e.preventDefault();
+                    var form = $(this);
+                    $.ajax({
+                        type: "POST",
+                        url: "/cart-add",
+                        data: form.serialize(),
+                        dataType: "json",
+                        success: function(data) {
+                            if (data.hasOwnProperty('Success') && data['Success']) {
+                                cartItems.push(data['Item']);
+                                updateCartDisplay();
+                                $('#myModal').modal('toggle');
+                                form[0].reset();
+                                getDate();
+                                $('#cartModal').modal('show');
+                                alert("Item added to cart!");
+                            } else {
+                                alert("Error: " + data['Error']);
+                            }
+                        },
+                        error: function(xhr) {
+                            try {
+                                var error = JSON.parse(xhr.responseText);
+                                alert("Error: " + error['Error']);
+                            } catch(e) {
+                                alert("Error adding to cart. Please try again.");
+                            }
                         }
-                    },
-                    error: function(xhr) {
-                        var error = JSON.parse(xhr.responseText);
-                        alert("Error: " + error['Error']);
-                    }
+                    });
                 });
             });
 
