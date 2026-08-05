@@ -1,11 +1,20 @@
+import { Route, Routes } from 'react-router-dom'
+import AppLayout from './components/layout/AppLayout'
+import Styleguide from './pages/Styleguide'
+import ComingSoon from './pages/ComingSoon'
+
 function App() {
   return (
-    <div className="min-h-screen bg-bg text-text-primary flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold text-text-primary">Portfolio Manager</h1>
-        <p className="mt-2 text-text-secondary">Scaffold ready — no features built yet.</p>
-      </div>
-    </div>
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<ComingSoon title="Home" />} />
+        <Route path="/portfolio" element={<ComingSoon title="My Portfolio" />} />
+        <Route path="/stocks" element={<ComingSoon title="Stocks" />} />
+        <Route path="/mutual-funds" element={<ComingSoon title="Mutual Funds" />} />
+        <Route path="/bonds" element={<ComingSoon title="Bonds" />} />
+        <Route path="/styleguide" element={<Styleguide />} />
+      </Route>
+    </Routes>
   )
 }
 
