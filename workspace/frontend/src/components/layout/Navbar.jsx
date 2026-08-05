@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { to: '/mutual-funds', label: 'Mutual Funds' },
   { to: '/bonds', label: 'Bonds' },
   { to: '/sips', label: 'SIPs' },
+  { to: '/news', label: 'News' },
   { to: '/calculators', label: 'Calculators' },
 ]
 

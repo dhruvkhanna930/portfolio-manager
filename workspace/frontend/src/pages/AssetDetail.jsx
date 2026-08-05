@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { Bookmark, BookmarkCheck, Landmark, LineChart, PiggyBank } from 'lucide-react'
 import { Badge, Button, Card, Skeleton, Tabs, showToast } from '../components/ui'
 import CandlestickChart from '../components/charts/CandlestickChart'
+import NewsList from '../components/news/NewsList'
 import { useAssetDetail, useSimilarAssets } from '../hooks/useAssets'
+import { useAssetNews } from '../hooks/useNews'
 import { usePriceHistory } from '../hooks/usePrices'
 import { useToggleWatchlist } from '../hooks/useWatchlist'
 import { formatCurrency, formatDate } from '../utils/formatters'
@@ -38,6 +40,7 @@ export default function AssetDetail() {
   const { data: asset, isLoading } = useAssetDetail(assetId)
   const { data: history, isLoading: historyLoading } = usePriceHistory(assetId, period)
   const { data: similar = [] } = useSimilarAssets(assetId)
+  const { data: news = [], isLoading: newsLoading, error: newsError } = useAssetNews(assetId, 10)
   const watchlist = useToggleWatchlist(assetId)
 
   if (isLoading || !asset) {
@@ -236,6 +239,19 @@ export default function AssetDetail() {
           </p>
         )}
       </Card>
+
+      <div>
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
+          News
+        </h2>
+        <NewsList
+          news={news}
+          loading={newsLoading}
+          error={newsError}
+          title={`${asset.name} News`}
+          showAsset={false}
+        />
+      </div>
 
       {similar.length > 0 && (
         <div>
