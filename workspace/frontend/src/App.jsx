@@ -9,6 +9,7 @@ import AssetTypePage from './pages/AssetTypePage'
 import AssetDetail from './pages/AssetDetail'
 import Sips from './pages/Sips'
 import News from './pages/News'
+import Analytics from './pages/Analytics'
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
         <Route path="/calculators" element={<Calculators />} />
         <Route path="/sips" element={<Sips />} />
         <Route path="/news" element={<News />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="/styleguide" element={<Styleguide />} />
       </Route>
     </Routes>

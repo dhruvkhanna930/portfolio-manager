@@ -23,8 +23,10 @@ def create_app(config_class=Config):
     api = Api(app)
     register_error_handlers(app)
 
+    from routes.analytics import blp as analytics_blp
     from routes.assets import blp as assets_blp
     from routes.calculators import blp as calculators_blp
+    from routes.goals import blp as goals_blp
     from routes.health import blp as health_blp
     from routes.market import blp as market_blp
     from routes.news import blp as news_blp
@@ -50,6 +52,8 @@ def create_app(config_class=Config):
     api.register_blueprint(tags_blp)
     api.register_blueprint(news_blp)
     api.register_blueprint(market_blp)
+    api.register_blueprint(analytics_blp)
+    api.register_blueprint(goals_blp)
 
     # Both the Nifty50 seed and the scheduler should only fire when the server is
     # actually about to serve requests -- not on every `flask db` CLI invocation

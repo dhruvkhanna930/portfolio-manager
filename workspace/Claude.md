@@ -91,6 +91,41 @@ Phase 6) — nothing already built gets thrown away, Phase 6 just grew:
     old 10 (News) → 11, old 11 (Home) → 12, Recommendation layer stays **last**,
     now Phase 13.
 
+### 0.3 — v3 update (analytics depth + visual overhaul, after Phase 12, before running old Phase 13)
+
+You brought a 30-item "make it hackathon-winning" list. Most of it is genuinely
+good and data-honest; some of it is scope-inflated or a tonal mismatch for a
+serious investing tool. The full verdict was given in chat; the short version:
+
+17. **Phase 13 as originally written is now too small.** A real Portfolio Health
+    Score + risk/diversification analytics *is* a proper superset of what 13 was
+    scoped to deliver. Rather than build the shallow version and immediately
+    replace it, **Phase 13 is superseded** — don't run it. **Phase 14** absorbs
+    its guardrails (§13) and does the full job.
+18. **Added Phase 14 (Advanced Analytics & Intelligence Layer)** — real risk
+    metrics, correlation, diversification/Health Score, benchmark comparison,
+    Monte Carlo, portfolio statistics, goals, rebalancing simulator. Every number
+    is either a real yfinance/mfapi.in field or computed by us from cached
+    `price_history`/transactions — nothing fabricated. See §14.
+19. **Added Phase 15 (Visual & Interactive Overhaul, now the true last phase)** —
+    Three.js, new chart types, richer Asset Detail content, command palette,
+    design refresh. Three.js is scoped to **ambient/decorative** use, not for
+    encoding actual data — 3D bar/pie/line charts are a well-known readability
+    problem (angle and depth distort perceived value), so all real financial
+    charts stay 2D (Recharts/lightweight-charts/D3). See §15.
+20. **Deliberately dropped or rescoped**, with reasons, rather than silently
+    ignored: gamification (badges/streaks — tonal mismatch for a serious
+    investing tool, and gamifying trading behavior is a real, documented product
+    criticism in fintech), full net-worth/financial-independence tracking (beyond
+    the brief — this is a stocks/MF/bonds portfolio app, not a net-worth
+    aggregator), true efficient-frontier portfolio optimization (high effort,
+    real risk of being subtly wrong — optional stretch only), drag-and-drop
+    custom dashboards (low ROI vs. everything else on the list), real push/email
+    notifications (no auth or contact info to send to — built as an in-app alert
+    panel instead), and a literal "Fear & Greed Index" (renamed "Market Mood
+    Score" and built from our own real breadth/volatility data — not a claim to
+    replicate a specific proprietary index).
+
 Everything below reflects these fixes already applied — treat this document as final,
 not as a diff.
 
@@ -830,13 +865,22 @@ backend/
 | 10 | Watchlist, SIPs with explicit Lumpsum/SIP choice, tags, global search | 3, 6 |
 | 11 | News integration (dedicated News page + Asset Detail tab, both) | 2 |
 | 12 | Home dashboard (portfolio movers + curated-index movers, sparklines, treemap) + full polish pass | 5, 7, 8, 11 |
-| **13** | **Recommendation / intelligence layer — LAST, do not build earlier** | everything above |
+| ~~13~~ | ~~Recommendation / intelligence layer~~ — **superseded, do not build as originally written.** Phase 14 below absorbs and replaces it entirely (a Portfolio Health Score is a proper superset of what 13 was scoped to do). | — |
+| **14** | **(v3, new)** Advanced Analytics & Intelligence Layer — risk metrics, correlation, diversification/Health Score, benchmark comparison, portfolio statistics, Monte Carlo, goals, rebalancing simulator. Carries forward §13's guardrails. See §14. | 4, 5, 6, 7 |
+| **15** | **(v3, new) LAST** — Visual & Interactive Overhaul: Three.js ambient layer, new chart types, richer Asset Detail, command palette, in-app alerts, PDF export, design refresh. See §15. | everything above, esp. 14 |
 
 ---
 
 ## 13. Guardrails for Phase 13 (Recommendation / Intelligence layer)
 
-This phase is intentionally last and intentionally the most constrained:
+**Note (v3):** Phase 13 itself is superseded (§12) — these guardrails now apply to
+**Phase 14** wherever it produces a score, flag, or narrative insight (Health
+Score, Portfolio DNA commentary, benchmark framing, rebalancing suggestions).
+Keep this section as-is; it's still the correct rulebook, just for a bigger phase.
+
+This phase is intentionally built only after the core app is solid, and it's
+intentionally constrained even though it's no longer the literal last phase (§15,
+pure visual polish, comes after it):
 
 - Start **rule-based**, not ML: diversification/concentration score, sector
   overexposure flags, "you're 70% in one sector" nudges, simple rebalancing-vs-target
@@ -848,3 +892,193 @@ This phase is intentionally last and intentionally the most constrained:
 - Don't let this phase touch the schema, calculations, or API contracts from earlier
   phases — it should be additive (new read-only endpoints + a new UI panel), not a
   refactor of §5–§7.
+
+---
+
+## 14. Advanced Analytics & Intelligence Layer (v3 — supersedes Phase 13)
+
+Rule for this entire section: **every number is either a real yfinance/mfapi.in
+field, or computed by us from `price_history`/`transactions`/`wallet_ledger` we
+already cache. Nothing fabricated.** Where a real free data source doesn't exist
+(FD rate, inflation), it's a clearly-labeled user-editable assumption, never
+presented as live data.
+
+### 14.1 Risk metrics
+Computed from daily returns derived from `price_history` (per-asset) and from the
+weighted portfolio daily-value series (portfolio-level, reuses §6.8's series):
+```
+daily_return[t] = (price[t] − price[t-1]) / price[t-1]
+volatility      = stdev(daily_return) × sqrt(252)                      # annualized
+beta            = cov(asset_returns, benchmark_returns) / var(benchmark_returns)
+sharpe          = (mean(daily_return) × 252 − risk_free_rate) / volatility
+sortino         = same as Sharpe but denominator uses stdev of NEGATIVE returns only
+max_drawdown    = max over t of (peak_value_so_far − value[t]) / peak_value_so_far
+VaR_95          = 5th percentile of the historical daily_return distribution
+calmar          = (annualized_return) / abs(max_drawdown)
+tracking_error  = stdev(asset_returns − benchmark_returns) × sqrt(252)
+```
+Store per-asset results in the existing `asset_metrics` table (it already has
+exactly this shape: `metric_key`, `period`, `metric_value`). Portfolio-level
+aggregates are NOT stored — compute on request, same principle as §6.
+
+### 14.2 Correlation matrix
+```
+correlation[i][j] = pearson_corr(daily_return[asset_i], daily_return[asset_j])
+```
+Computed on the fly across current holdings, no storage.
+
+### 14.3 Diversification Score + Portfolio Health Score
+```
+# Diversification (Shannon entropy of allocation-by-holding weights, normalized 0-100)
+shannon_entropy = − Σ (w_i × ln(w_i))    for each holding weight w_i
+diversification_score = (shannon_entropy / ln(n_holdings)) × 100   # 100 = perfectly even
+
+# Concentration (Herfindahl-Hirschman Index)
+HHI = Σ (w_i² )                          # higher = more concentrated
+
+# Portfolio Health Score (0-100) — simple weighted composite, keep the weights
+# visible/configurable in code, not a black box:
+health_score = round(
+    0.30 × diversification_score +
+    0.25 × cash_reserve_score        (wallet_balance / total_current, capped/scaled) +
+    0.25 × (100 − normalized_volatility) +
+    0.20 × sector_balance_score      (inverse of largest single-sector allocation %)
+)
+```
+This is the content that replaces old Phase 13's insights panel — show strengths/
+weaknesses/suggestions per §13's guardrails (educational framing, disclaimer).
+
+### 14.4 Benchmark comparison
+New cache table (benchmarks aren't holdings, don't belong in `asset_metadata`):
+```sql
+CREATE TABLE benchmark_price_history (
+    benchmark_code VARCHAR(20) NOT NULL,   -- 'NIFTY50', 'SENSEX', 'GOLD'
+    price_date     DATE NOT NULL,
+    close_price    NUMERIC(18,4) NOT NULL,
+    PRIMARY KEY (benchmark_code, price_date)
+);
+```
+Sync via yfinance tickers (`^NSEI`, `^BSESN`, a gold ETF proxy like `GOLDBEES.NS`)
+on the same schedule as §4's price sync. **FD and inflation are NOT live data** —
+expose them as user-editable assumed annual rates (e.g. default 7% and 6%),
+computed as a simple compounding line, and label them as assumptions in the UI,
+not as fetched data.
+
+### 14.5 Portfolio statistics
+```
+best_performer / worst_performer   = holding with max/min profit_loss_pct
+win_rate                            = (# holdings with profit_loss > 0) / (# holdings)
+avg_holding_period                  = mean(today − first_bought) across holdings
+largest_gain / largest_loss         = max/min single realised P/L across transactions
+longest_held                        = holding with earliest first_bought
+turnover                            = Σ(sell transaction values) / average total_current over the period
+```
+All from existing `holdings`/`transactions` — no new tables.
+
+### 14.6 Monte Carlo projection
+Bootstrap resampling of REAL historical daily returns (not an assumed distribution):
+```
+for each of N simulations (500-1000):
+    randomly resample daily_return history (with replacement) for `horizon_days`
+    compound them forward from current portfolio value
+collect all N final paths -> report 10th/50th/90th percentile bands at each day
+```
+Read-only, on-demand, not stored. Frontend renders as a fan chart (percentile bands).
+
+### 14.7 Goals (new, minimal — don't over-scope into full financial planning)
+```sql
+CREATE TABLE goals (
+    goal_id       BIGSERIAL PRIMARY KEY,
+    name          VARCHAR(120) NOT NULL,     -- 'Home Down Payment', 'Europe Trip'
+    target_amount NUMERIC(18,2) NOT NULL,
+    target_date   DATE,
+    created_at    TIMESTAMP DEFAULT now()
+);
+```
+Progress = `total_current / target_amount`. Deliberately NOT linked to specific
+holdings or external assets (no net-worth tracking, no liabilities) — see §0.3
+item 20 for why that's out of scope.
+
+### 14.8 Rebalancing simulator
+Given hypothetical target weights in the request body (never persisted), recompute
+what §14.1/§14.3's metrics would look like at those weights using the same
+historical return series — a "what if" calculation, not a real rebalance/trade.
+
+### 14.9 Market Mood Score (NOT "Fear & Greed Index" — see §0.3 item 20)
+```
+market_mood = weighted combination of:
+  - breadth  = (% of market_index_constituents currently up today)
+  - momentum = index's own short-term trend (e.g. 5-day vs 20-day average)
+  - volatility = recent volatility of the index itself
+```
+An original, simpler composite — don't claim equivalence to any specific
+proprietary index.
+
+### 14.10 New API endpoints
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/analytics/risk?scope=portfolio\|asset&asset_id=` | §14.1 |
+| GET | `/api/analytics/correlation` | §14.2 |
+| GET | `/api/analytics/health-score` | §14.3 — replaces old `/api/portfolio/insights` |
+| GET | `/api/analytics/benchmark?codes=NIFTY50,GOLD&period=1Y` | §14.4 |
+| GET | `/api/analytics/statistics` | §14.5 |
+| POST | `/api/analytics/monte-carlo` | §14.6 — body: horizon_days, n_simulations |
+| GET/POST/DELETE | `/api/goals` | §14.7 |
+| POST | `/api/analytics/rebalance-preview` | §14.8 — body: hypothetical weights |
+| GET | `/api/market/mood` | §14.9 |
+
+---
+
+## 15. Visual & Interactive Overhaul (v3 — the true last phase)
+
+### 15.1 Three.js — ambient/decorative only, never for encoding real data
+Add `three` + `@react-three/fiber` (+ `@react-three/drei` for helpers). Real
+financial numbers stay in 2D (Recharts/lightweight-charts/D3) — **3D bar/pie/line
+charts are a well-documented readability problem** (depth and perspective distort
+perceived value/proportion), so don't build any. Good uses instead:
+- An ambient animated background layer behind the Home hero (particles, a soft
+  flowing mesh/wave, or a slowly rotating abstract shape) — subtle, low-opacity,
+  never competing with the data in front of it.
+- A decorative 3D element that reacts to portfolio mood (e.g. tints toward
+  `--positive`/`--negative` based on today's P/L) — flavor, not a data source.
+- Reserve it for 1-2 moments (Home hero, maybe the Health Score reveal) rather
+  than scattering it everywhere — restraint reads as more "senior engineer" to
+  judges than maximalism does.
+
+### 15.2 New chart components (add to `frontend/src/components/charts/`)
+`RadarChart` (Portfolio DNA — sector/asset-class exposure), `CorrelationHeatmap`,
+`SankeyDiagram` (cash flow: deposits → wallet → buys/sells → holdings), `Gauge`
+(Health Score dial), `BubbleScatter` (risk vs. return per holding, bubble size =
+position size), `CalendarHeatmap` (activity/SIP contributions, GitHub-style),
+`MonteCarloFanChart` (percentile bands), `WaterfallChart` (cash flow breakdown).
+All 2D (Recharts or D3 depending on which supports the shape better — Recharts
+lacks native Sankey/heatmap, so those two use D3 directly).
+
+### 15.3 Design refresh — selective, not everywhere
+Glassmorphism/glow/gradient treatments per CLAUDE.md §8 tokens: use them on the
+Home hero, the Health Score card, and primary CTAs — **not** on dense data tables
+or the holdings grid, where legibility and scan-speed matter more than flourish.
+A financial app that's hard to read numbers in has failed regardless of how it
+looks. Add smooth page transitions (extend §8.3's Framer Motion conventions),
+floating/glowing accent borders on hero cards, and blur-backdrop modals.
+
+### 15.4 Command palette (⌘K / Ctrl+K)
+Global search-and-navigate overlay: jump to any page, any already-added asset
+(via §7's `/api/search`), or any calculator. Cheap to build, reads as serious
+engineering polish.
+
+### 15.5 In-app alerts (not real push/email — no auth or contact info to send to)
+A bell icon + panel computed on page load: price-target hits, allocation drift
+past a threshold, SIP due reminders, milestone crossings (e.g. "crossed ₹1L
+invested"). Purely in-app, recomputed each visit — not a notification
+infrastructure.
+
+### 15.6 PDF report export
+One clean template (use the existing `pdf` skill/tooling): portfolio summary,
+holdings table, allocation charts, key risk metrics from §14.1, generated
+on-demand — not a scheduled/emailed report (no infra for that here).
+
+### 15.7 Deliberately excluded (say so in the UI/README, don't silently skip)
+Gamification (badges/streaks/levels), full net-worth/financial-independence
+tracking, true efficient-frontier portfolio optimization, drag-and-drop custom
+dashboard widgets, real push/email notifications. Reasons in §0.3 item 20.
