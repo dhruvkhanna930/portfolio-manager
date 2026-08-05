@@ -1,8 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import './styles/theme.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  .bg-positive-soft {
+    background-color: color-mix(in srgb, var(--positive) 16%, transparent);
+  }
+  .bg-negative-soft {
+    background-color: color-mix(in srgb, var(--negative) 16%, transparent);
+  }
+  .bg-warning-soft {
+    background-color: color-mix(in srgb, var(--warning) 16%, transparent);
+  }
+  .bg-accent-soft {
+    background-color: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+}
 
 html,
 body,
