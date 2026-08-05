@@ -6,6 +6,7 @@ import Input from '../ui/Input'
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/portfolio', label: 'My Portfolio' },
+  { to: '/transactions', label: 'Transactions' },
   { to: '/stocks', label: 'Stocks' },
   { to: '/mutual-funds', label: 'Mutual Funds' },
   { to: '/bonds', label: 'Bonds' },
