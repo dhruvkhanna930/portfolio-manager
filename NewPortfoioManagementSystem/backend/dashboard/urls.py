@@ -11,6 +11,9 @@ urlpatterns = [
     path('portfolio-summary', views.portfolio_summary, name="portfolio-summary"),
     path('get-portfolio-insights', views.get_portfolio_insights, name="get-portfolio-insights"),
     path('backtesting', views.backtesting, name="backtesting"),
+<<<<<<< HEAD
+    path('get-recommendations', views.get_recommendations, name="get-recommendations"),    path('get-model-evaluation', views.get_model_evaluation, name='get-model-evaluation'),]
+=======
     path('get-recommendations', views.get_recommendations, name="get-recommendations"),
     path('wallet-add-credit', views.add_wallet_credit, name="wallet-add-credit"),
     path('cart-add', views.add_to_cart, name="cart-add"),
@@ -18,3 +21,4 @@ urlpatterns = [
     path('cart-remove', views.remove_from_cart, name="cart-remove"),
     path('cart-checkout', views.checkout_cart, name="cart-checkout"),
 ]
+>>>>>>> 0a3003f792809098c951e4696ac03f3132d9d46c

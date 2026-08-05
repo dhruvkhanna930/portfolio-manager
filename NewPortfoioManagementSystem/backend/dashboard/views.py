@@ -8,7 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from .models import Portfolio, StockHolding, WalletTransaction
 from .portfolio_summary import build_portfolio_summary
-from .recommendations import get_portfolio_recommendations
+from .recommendations import get_portfolio_recommendations, get_initial_recommendations_by_risk_profile
+from .trained_models import compute_trained_models_evaluation_matrix
 from riskprofile.models import RiskProfile
 from riskprofile.views import risk_profile
 
@@ -296,13 +297,106 @@ def backtesting(request):
 
 
 @login_required
+def get_model_evaluation(request):
+  try:
+    tickers_param = request.GET.get('tickers', '')
+    if tickers_param:
+      tickers = [ticker.strip().upper() for ticker in tickers_param.split(',') if ticker.strip()]
+    else:
+      tickers = ['AAPL', 'MSFT', 'GOOGL', 'TSLA']
+
+    max_samples_param = request.GET.get('max_samples', '50')
+    try:
+      max_samples = int(max_samples_param)
+    except ValueError:
+      max_samples = 50
+
+    matrix = compute_trained_models_evaluation_matrix(tickers, max_samples=max_samples)
+    return JsonResponse({
+      'model_evaluation': matrix,
+      'tickers': tickers,
+      'max_samples': max_samples
+    })
+  except Exception as e:
+    return JsonResponse({"Error": str(e)})
+
+
+@login_required
 def get_recommendations(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
-    recommendations = get_portfolio_recommendations(portfolio)
+    # Check if portfolio has holdings
+    holding_companies = StockHolding.objects.filter(portfolio=portfolio)
+
+    if holding_companies.exists():
+      # User has stocks, use portfolio-based recommendations
+      recommendations = get_portfolio_recommendations(portfolio)
+    else:
+      # User has no stocks, use risk profile-based recommendations
+      risk_profile = RiskProfile.objects.filter(user=request.user).first()
+      if risk_profile:
+        recommendations_list = get_initial_recommendations_by_risk_profile(
+          risk_profile.category,
+          num_recommendations=10
+        )
+        recommendations = {
+          'similar_stocks': recommendations_list,
+          'complementary_stocks': [],
+          'source': 'risk_profile',
+          'message': f'Personalized recommendations based on your {risk_profile.category} risk profile',
+          'ai_models_used': {
+            'sentiment_analysis': 'DistilBERT (Transformers)',
+            'stock_forecasting': 'LSTM with Exponential Smoothing Fallback',
+            'trained_models': {
+              'gru_1day': 'GRU model for 1-day price movement prediction',
+              'lstm_5day': 'LSTM model for 5-day price movement prediction'
+            },
+            'scoring_weights': {
+              'risk_profile_match': 0.40,
+              'sentiment_analysis': 0.35,
+              'trained_models': 0.25
+            }
+          }
+        }
+      else:
+        return JsonResponse({"Error": "Please complete risk profile first"})
+
     return JsonResponse(recommendations)
   except Portfolio.DoesNotExist:
-    return JsonResponse({"Error": "Portfolio not found"})
+    # No portfolio exists yet, create one and use risk profile
+    try:
+      portfolio = Portfolio.objects.create(user=request.user)
+      risk_profile = RiskProfile.objects.filter(user=request.user).first()
+
+      if risk_profile:
+        recommendations_list = get_initial_recommendations_by_risk_profile(
+          risk_profile.category,
+          num_recommendations=10
+        )
+        recommendations = {
+          'similar_stocks': recommendations_list,
+          'complementary_stocks': [],
+          'source': 'risk_profile',
+          'message': f'Personalized recommendations based on your {risk_profile.category} risk profile',
+          'ai_models_used': {
+            'sentiment_analysis': 'DistilBERT (Transformers)',
+            'stock_forecasting': 'LSTM with Exponential Smoothing Fallback',
+            'trained_models': {
+              'gru_1day': 'GRU model for 1-day price movement prediction',
+              'lstm_5day': 'LSTM model for 5-day price movement prediction'
+            },
+            'scoring_weights': {
+              'risk_profile_match': 0.40,
+              'sentiment_analysis': 0.35,
+              'trained_models': 0.25
+            }
+          }
+        }
+        return JsonResponse(recommendations)
+      else:
+        return JsonResponse({"Error": "Please complete risk profile first"})
+    except Exception as e:
+      return JsonResponse({"Error": str(e)})
   except Exception as e:
     return JsonResponse({"Error": str(e)})
 

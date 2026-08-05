@@ -10,6 +10,9 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 from .models import StockHolding
+<<<<<<< HEAD
+from .trained_models import compute_trained_model_scores, blend_with_model_scores
+=======
 import json
 
 
@@ -24,6 +27,7 @@ def convert_to_json_serializable(obj):
     elif isinstance(obj, (list, tuple)):
         return [convert_to_json_serializable(item) for item in obj]
     return obj
+>>>>>>> 0a3003f792809098c951e4696ac03f3132d9d46c
 
 try:
     from alpha_vantage.fundamentaldata import FundamentalData
@@ -341,16 +345,43 @@ def recommend_stocks(portfolio, num_recommendations=10, use_ai=True):
         if use_ai:
             print("Computing AI model scores...")
             ai_scores = compute_ai_model_scores([r['symbol'] for r in recommendations])
+            trained_model_scores = compute_trained_model_scores([r['symbol'] for r in recommendations])
+
             for rec in recommendations:
                 if rec['symbol'] in ai_scores:
                     ai_data = ai_scores[rec['symbol']]
                     rec['ai_sentiment'] = round(ai_data['sentiment'], 2)
                     rec['ai_forecast'] = round(ai_data['forecast'], 2)
-                    rec['final_score'] = round(
-                        blend_scores(rec['rule_score'], ai_data['combined'], has_history=True), 3
-                    )
+                    rec['ai_score'] = round(ai_data['combined'], 2)
                 else:
-                    rec['final_score'] = rec['rule_score']
+                    rec['ai_sentiment'] = 50
+                    rec['ai_forecast'] = 50
+                    rec['ai_score'] = 50
+
+                if rec['symbol'] in trained_model_scores:
+                    trained_data = trained_model_scores[rec['symbol']]
+                    if trained_data.get('available', False):
+                        rec['trained_model_1day'] = trained_data['1day']
+                        rec['trained_model_5day'] = trained_data['5day']
+                        rec['trained_model_score'] = trained_data['combined']
+                    else:
+                        rec['trained_model_1day'] = 50
+                        rec['trained_model_5day'] = 50
+                        rec['trained_model_score'] = 50
+                else:
+                    rec['trained_model_1day'] = 50
+                    rec['trained_model_5day'] = 50
+                    rec['trained_model_score'] = 50
+
+                fundamental_weight = 0.4
+                ai_weight = 0.35
+                model_weight = 0.25
+
+                rec['final_score'] = round(
+                    (rec['rule_score'] * fundamental_weight +
+                     rec['ai_score'] * ai_weight +
+                     rec['trained_model_score'] * model_weight), 3
+                )
 
             recommendations.sort(key=lambda x: x.get('final_score', x['rule_score']), reverse=True)
 
@@ -424,16 +455,43 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10, use_ai=Tru
         if use_ai:
             print("Computing AI model scores for complementary stocks...")
             ai_scores = compute_ai_model_scores([s['symbol'] for s in sorted_complementary])
+            trained_model_scores = compute_trained_model_scores([s['symbol'] for s in sorted_complementary])
+
             for stock in sorted_complementary:
                 if stock['symbol'] in ai_scores:
                     ai_data = ai_scores[stock['symbol']]
                     stock['ai_sentiment'] = round(ai_data['sentiment'], 2)
                     stock['ai_forecast'] = round(ai_data['forecast'], 2)
-                    stock['final_score'] = round(
-                        blend_scores(stock['rule_score'], ai_data['combined'], has_history=True), 3
-                    )
+                    stock['ai_score'] = round(ai_data['combined'], 2)
                 else:
-                    stock['final_score'] = stock['rule_score']
+                    stock['ai_sentiment'] = 50
+                    stock['ai_forecast'] = 50
+                    stock['ai_score'] = 50
+
+                if stock['symbol'] in trained_model_scores:
+                    trained_data = trained_model_scores[stock['symbol']]
+                    if trained_data.get('available', False):
+                        stock['trained_model_1day'] = trained_data['1day']
+                        stock['trained_model_5day'] = trained_data['5day']
+                        stock['trained_model_score'] = trained_data['combined']
+                    else:
+                        stock['trained_model_1day'] = 50
+                        stock['trained_model_5day'] = 50
+                        stock['trained_model_score'] = 50
+                else:
+                    stock['trained_model_1day'] = 50
+                    stock['trained_model_5day'] = 50
+                    stock['trained_model_score'] = 50
+
+                fundamental_weight = 0.4
+                ai_weight = 0.35
+                model_weight = 0.25
+
+                stock['final_score'] = round(
+                    (stock['rule_score'] * fundamental_weight +
+                     stock['ai_score'] * ai_weight +
+                     stock['trained_model_score'] * model_weight), 3
+                )
 
             sorted_complementary.sort(key=lambda x: x.get('final_score', x['rule_score']), reverse=True)
 
@@ -691,10 +749,175 @@ def get_portfolio_recommendations(portfolio, use_ai=True):
         'complementary_stocks': complementary_stocks,
         'ai_models_used': {
             'sentiment_analysis': 'DistilBERT (Transformers)',
-            'stock_forecasting': 'LSTM with Exponential Smoothing Fallback'
+            'stock_forecasting': 'LSTM with Exponential Smoothing Fallback',
+            'trained_models': {
+                'gru_1day': 'GRU model for 1-day price movement prediction',
+                'lstm_5day': 'LSTM model for 5-day price movement prediction'
+            },
+            'scoring_weights': {
+                'fundamental_analysis': 0.40,
+                'sentiment_analysis': 0.35,
+                'trained_models': 0.25
+            }
         } if use_ai else None
     }
 
+<<<<<<< HEAD
+
+def get_risk_profile_stock_universe(risk_category):
+    """Get appropriate stock universe based on risk profile"""
+    if risk_category == 'Conservative':
+        return [
+            'JNJ', 'PG', 'KO', 'PEP', 'MCD', 'WMT', 'T', 'VZ', 'PFE', 'ABBV',
+            'CVX', 'XOM', 'MRK', 'LLY', 'UNH', 'MSFT', 'AAPL', 'V', 'JPM', 'BRK.B'
+        ]
+    elif risk_category == 'Balanced':
+        return [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'JPM', 'V', 'WMT', 'JNJ', 'PG', 'KO',
+            'PEP', 'MCD', 'DIS', 'CRM', 'CSCO', 'ORCL', 'IBM', 'INTC', 'AMD', 'TSM'
+        ]
+    elif risk_category == 'Assertive':
+        return [
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'AMD', 'CRM',
+            'ADBE', 'NFLX', 'DIS', 'INTC', 'TSM', 'BABA', 'SQ', 'SHOP', 'ROKU', 'ZM', 'DASH'
+        ]
+    else:  # Aggressive
+        return [
+            'TSLA', 'META', 'NVDA', 'AMD', 'NFLX', 'INTC', 'BABA', 'TSM', 'SQ', 'ROKU',
+            'SHOP', 'ZM', 'DASH', 'COIN', 'SOFI', 'RIOT', 'MARA', 'LCID', 'PLTR', 'AI'
+        ]
+
+
+def score_stock_for_risk_profile(fundamentals, risk_category):
+    """Score a stock based on risk profile match"""
+    score = 50.0
+
+    if risk_category == 'Conservative':
+        # Prefer: Low P/E, Low Beta, High dividend yield
+        if fundamentals.get('pe_ratio', 0) > 0 and fundamentals.get('pe_ratio', 0) < 15:
+            score += 15
+        elif fundamentals.get('pe_ratio', 0) >= 15 and fundamentals.get('pe_ratio', 0) < 25:
+            score += 5
+
+        if fundamentals.get('beta', 0) > 0 and fundamentals.get('beta', 0) < 0.8:
+            score += 15
+        elif fundamentals.get('beta', 0) >= 0.8 and fundamentals.get('beta', 0) < 1.2:
+            score += 5
+
+        if fundamentals.get('dividend_yield', 0) > 0.02:
+            score += 10
+
+    elif risk_category == 'Balanced':
+        # Moderate P/E and Beta
+        if fundamentals.get('pe_ratio', 0) > 0 and fundamentals.get('pe_ratio', 0) < 30:
+            score += 10
+
+        if fundamentals.get('beta', 0) > 0 and fundamentals.get('beta', 0) < 1.3:
+            score += 10
+
+        if fundamentals.get('profit_margin', 0) > 0.1:
+            score += 10
+
+    elif risk_category == 'Assertive':
+        # Growth-oriented: Higher P/E acceptable, profit margin important
+        if fundamentals.get('pe_ratio', 0) > 15 and fundamentals.get('pe_ratio', 0) < 50:
+            score += 15
+
+        if fundamentals.get('beta', 0) > 1 and fundamentals.get('beta', 0) < 1.8:
+            score += 10
+
+        if fundamentals.get('profit_margin', 0) > 0.15:
+            score += 10
+
+    else:  # Aggressive
+        # High growth, higher risk acceptable
+        if fundamentals.get('pe_ratio', 0) > 20:
+            score += 15
+
+        if fundamentals.get('beta', 0) > 1.2:
+            score += 15
+
+        if fundamentals.get('return_on_equity', 0) > 0.15:
+            score += 10
+
+    return score
+
+
+def get_initial_recommendations_by_risk_profile(risk_category, num_recommendations=10, use_ai=True):
+    """Generate stock recommendations based on risk profile (no portfolio required)"""
+    try:
+        print(f"Generating initial recommendations for {risk_category} risk profile")
+
+        stock_universe = get_risk_profile_stock_universe(risk_category)
+        print(f"Stock universe: {len(stock_universe)} stocks")
+
+        recommendations = []
+
+        for symbol in stock_universe:
+            fundamentals = get_stock_fundamentals(symbol)
+            if fundamentals:
+                risk_score = score_stock_for_risk_profile(fundamentals, risk_category)
+                fundamentals['rule_score'] = round(risk_score, 3)
+                recommendations.append(fundamentals)
+
+        if not recommendations:
+            print("No stocks data available")
+            return []
+
+        recommendations.sort(key=lambda x: x['rule_score'], reverse=True)
+        recommendations = recommendations[:num_recommendations * 2]
+
+        if use_ai:
+            print("Computing AI model scores...")
+            ai_scores = compute_ai_model_scores([r['symbol'] for r in recommendations])
+            trained_model_scores = compute_trained_model_scores([r['symbol'] for r in recommendations])
+
+            for rec in recommendations:
+                if rec['symbol'] in ai_scores:
+                    ai_data = ai_scores[rec['symbol']]
+                    rec['ai_sentiment'] = round(ai_data['sentiment'], 2)
+                    rec['ai_forecast'] = round(ai_data['forecast'], 2)
+                    rec['ai_score'] = round(ai_data['combined'], 2)
+                else:
+                    rec['ai_sentiment'] = 50
+                    rec['ai_forecast'] = 50
+                    rec['ai_score'] = 50
+
+                if rec['symbol'] in trained_model_scores:
+                    trained_data = trained_model_scores[rec['symbol']]
+                    if trained_data.get('available', False):
+                        rec['trained_model_1day'] = trained_data['1day']
+                        rec['trained_model_5day'] = trained_data['5day']
+                        rec['trained_model_score'] = trained_data['combined']
+                    else:
+                        rec['trained_model_1day'] = 50
+                        rec['trained_model_5day'] = 50
+                        rec['trained_model_score'] = 50
+                else:
+                    rec['trained_model_1day'] = 50
+                    rec['trained_model_5day'] = 50
+                    rec['trained_model_score'] = 50
+
+                fundamental_weight = 0.4
+                ai_weight = 0.35
+                model_weight = 0.25
+
+                rec['final_score'] = round(
+                    (rec['rule_score'] * fundamental_weight +
+                     rec['ai_score'] * ai_weight +
+                     rec['trained_model_score'] * model_weight), 3
+                )
+
+            recommendations.sort(key=lambda x: x.get('final_score', x['rule_score']), reverse=True)
+
+        return recommendations[:num_recommendations]
+
+    except Exception as e:
+        print(f"Error in get_initial_recommendations_by_risk_profile: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return []
+=======
     # Convert numpy types to JSON serializable Python types
     recommendations = convert_to_json_serializable(recommendations)
 
@@ -702,3 +925,4 @@ def get_portfolio_recommendations(portfolio, use_ai=True):
     cache.set(cache_key, recommendations, 86400)
 
     return recommendations
+>>>>>>> 0a3003f792809098c951e4696ac03f3132d9d46c
