@@ -5,6 +5,7 @@ import BuyModal from '../components/portfolio/BuyModal'
 import SellModal from '../components/portfolio/SellModal'
 import WalletBalance from '../components/wallet/WalletBalance'
 import AllocationDonut from '../components/charts/AllocationDonut'
+import PerformanceChart from '../components/charts/PerformanceChart'
 import { useHoldings } from '../hooks/useHoldings'
 import { useSyncPrices } from '../hooks/usePrices'
 import { useWallet } from '../hooks/useWallet'
@@ -251,15 +252,21 @@ export default function Portfolio() {
         />
       </div>
 
-      <Card className="mb-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-text-secondary">
-            Allocation
-          </h2>
-          <Tabs tabs={ALLOCATION_TABS} value={allocationBy} onChange={setAllocationBy} />
-        </div>
-        <AllocationDonut items={allocation?.items ?? []} loading={allocationLoading} />
-      </Card>
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <PerformanceChart />
+        </Card>
+
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-text-secondary">
+              Allocation
+            </h2>
+            <Tabs tabs={ALLOCATION_TABS} value={allocationBy} onChange={setAllocationBy} />
+          </div>
+          <AllocationDonut items={allocation?.items ?? []} loading={allocationLoading} />
+        </Card>
+      </div>
 
       {!isLoading && rows.length === 0 ? (
         <div className="rounded border border-border bg-surface">

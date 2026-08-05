@@ -26,3 +26,22 @@ class AllocationResponseSchema(Schema):
     by = fields.String()
     total_current = fields.Decimal(as_string=True)
     items = fields.List(fields.Nested(AllocationItemSchema))
+
+
+# No "1D" here -- per CLAUDE.md §4.2 portfolio-level intraday is out of scope,
+# only the per-asset chart (Phase 8) gets a live 1D view.
+PERFORMANCE_PERIODS = ["1W", "1M", "6M", "1Y", "3Y", "5Y", "ALL"]
+
+
+class PerformanceQuerySchema(Schema):
+    period = fields.String(load_default="1Y", validate=validate.OneOf(PERFORMANCE_PERIODS))
+
+
+class PerformancePointSchema(Schema):
+    date = fields.Date()
+    value = fields.Decimal(as_string=True)
+
+
+class PerformanceResponseSchema(Schema):
+    period = fields.String()
+    points = fields.List(fields.Nested(PerformancePointSchema))

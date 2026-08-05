@@ -1,8 +1,36 @@
+import bisect
+import math
+from datetime import date
 from decimal import Decimal
 
-from models import Holding, Transaction
+from dateutil.relativedelta import relativedelta
+
+from models import Holding, PriceHistory, Transaction
 
 VALID_ALLOCATION_DIMENSIONS = ("type", "sector", "holding")
+VALID_PERFORMANCE_PERIODS = ("1W", "1M", "6M", "1Y", "3Y", "5Y", "ALL")
+
+_PERFORMANCE_PERIOD_DELTA = {
+    "1W": relativedelta(weeks=1),
+    "1M": relativedelta(months=1),
+    "6M": relativedelta(months=6),
+    "1Y": relativedelta(years=1),
+    "3Y": relativedelta(years=3),
+    "5Y": relativedelta(years=5),
+}
+
+# §4.2: full daily resolution for short/medium windows, weekly-ish for 3Y/5Y,
+# monthly-ish for ALL -- caps chosen as point budgets rather than exact
+# calendar buckets, since trading calendars aren't evenly spaced anyway.
+_PERFORMANCE_MAX_POINTS = {
+    "1W": 400,
+    "1M": 400,
+    "6M": 400,
+    "1Y": 400,
+    "3Y": 250,
+    "5Y": 250,
+    "ALL": 200,
+}
 
 
 def _sector_label(asset):
@@ -159,6 +187,111 @@ def get_allocation(by="type"):
     items.sort(key=lambda i: i["value"], reverse=True)
 
     return {"by": by, "total_current": total_current, "items": items}
+
+
+def _downsample_dates(dates, max_points):
+    if len(dates) <= max_points:
+        return dates
+    stride = math.ceil(len(dates) / max_points)
+    sampled = dates[::stride]
+    if sampled[-1] != dates[-1]:
+        sampled.append(dates[-1])
+    return sampled
+
+
+def get_portfolio_performance(period="1Y"):
+    """Portfolio value over time per CLAUDE.md §6.8:
+
+        value(D) = Σ over holdings [ units_held_on(D) × price_history[asset, D] ]
+
+    units_held_on(D) is replayed from the transaction log (so a since-sold asset
+    still contributes for the dates it was actually held). Prices are read
+    entirely from the price_history cache -- this never calls yfinance/mfapi.in
+    live. No 1D option: per §4.2 portfolio-level intraday is out of scope, only
+    the per-asset chart (Phase 8) gets a live 1D view.
+    """
+    if period not in VALID_PERFORMANCE_PERIODS:
+        raise ValueError(f"invalid performance period: {period}")
+
+    transactions = Transaction.query.order_by(Transaction.txn_date, Transaction.transaction_id).all()
+    if not transactions:
+        return {"period": period, "points": []}
+
+    asset_ids = sorted({t.asset_id for t in transactions})
+    first_txn_date = min(t.txn_date for t in transactions)
+    today = date.today()
+    end_date = today
+
+    if period == "ALL":
+        start_date = first_txn_date
+    else:
+        start_date = max(today - _PERFORMANCE_PERIOD_DELTA[period], first_txn_date)
+
+    # Per-asset cumulative quantity as of each transaction date (collapsing same-day
+    # transactions to their end-of-day cumulative quantity).
+    qty_dates = {asset_id: [] for asset_id in asset_ids}
+    qty_values = {asset_id: [] for asset_id in asset_ids}
+    running_qty = {asset_id: Decimal("0") for asset_id in asset_ids}
+    for txn in transactions:
+        if txn.txn_type == "BUY":
+            running_qty[txn.asset_id] += Decimal(txn.quantity)
+        elif txn.txn_type == "SELL":
+            running_qty[txn.asset_id] -= Decimal(txn.quantity)
+        # DIVIDEND doesn't change quantity held.
+        dates, values = qty_dates[txn.asset_id], qty_values[txn.asset_id]
+        if dates and dates[-1] == txn.txn_date:
+            values[-1] = running_qty[txn.asset_id]
+        else:
+            dates.append(txn.txn_date)
+            values.append(running_qty[txn.asset_id])
+
+    # Per-asset price timeline, unbounded below end_date so early sample dates can
+    # still forward-fill from whatever price predates them.
+    price_rows = (
+        PriceHistory.query.filter(
+            PriceHistory.asset_id.in_(asset_ids), PriceHistory.price_date <= end_date
+        )
+        .order_by(PriceHistory.asset_id, PriceHistory.price_date)
+        .all()
+    )
+    price_dates = {asset_id: [] for asset_id in asset_ids}
+    price_values = {asset_id: [] for asset_id in asset_ids}
+    sample_date_set = set()
+    for row in price_rows:
+        price_dates[row.asset_id].append(row.price_date)
+        price_values[row.asset_id].append(Decimal(row.close_price))
+        if start_date <= row.price_date <= end_date:
+            sample_date_set.add(row.price_date)
+
+    if not sample_date_set:
+        return {"period": period, "points": []}
+
+    sample_dates = _downsample_dates(sorted(sample_date_set), _PERFORMANCE_MAX_POINTS[period])
+
+    def qty_on(asset_id, d):
+        dates = qty_dates[asset_id]
+        idx = bisect.bisect_right(dates, d) - 1
+        return qty_values[asset_id][idx] if idx >= 0 else Decimal("0")
+
+    def price_on(asset_id, d):
+        dates = price_dates[asset_id]
+        idx = bisect.bisect_right(dates, d) - 1
+        return price_values[asset_id][idx] if idx >= 0 else None
+
+    points = []
+    for d in sample_dates:
+        total = Decimal("0")
+        for asset_id in asset_ids:
+            qty = qty_on(asset_id, d)
+            if qty == 0:
+                continue
+            price = price_on(asset_id, d)
+            if price is None:
+                continue
+            total += qty * price
+        points.append({"date": d, "value": total})
+
+    return {"period": period, "points": points}
 
 
 def compute_weighted_avg_buy_price(old_qty, old_avg, buy_qty, buy_price):

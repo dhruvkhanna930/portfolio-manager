@@ -18,3 +18,10 @@ export function formatNumber(value, options = {}) {
   if (value == null || Number.isNaN(value)) return '—'
   return new Intl.NumberFormat('en-IN', options).format(value)
 }
+
+export function formatDate(value, options = { day: 'numeric', month: 'short', year: 'numeric' }) {
+  if (!value) return '—'
+  const d = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-IN', options).format(d)
+}
