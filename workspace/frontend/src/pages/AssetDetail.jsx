@@ -4,9 +4,14 @@ import { Bookmark, BookmarkCheck, Landmark, LineChart, PiggyBank, RefreshCw } fr
 import { Badge, Button, Card, Skeleton, Tabs, showToast } from '../components/ui'
 import CandlestickChart from '../components/charts/CandlestickChart'
 import NewsList from '../components/news/NewsList'
+import DividendHistory from '../components/assets/DividendHistory'
+import FundamentalsGrid from '../components/assets/FundamentalsGrid'
+import PeerRankPanel from '../components/assets/PeerRankPanel'
+import PriceTargetCard from '../components/assets/PriceTargetCard'
 import { useAssetDetail, useSimilarAssets } from '../hooks/useAssets'
 import { useAssetNews, useRefreshAssetNews } from '../hooks/useNews'
 import { usePriceHistory } from '../hooks/usePrices'
+import { useTransactions } from '../hooks/useTransactions'
 import { useToggleWatchlist } from '../hooks/useWatchlist'
 import { formatCurrency, formatDate } from '../utils/formatters'
 import { getApiErrorMessage } from '../utils/apiError'
@@ -43,6 +48,7 @@ export default function AssetDetail() {
   const { data: news = [], isLoading: newsLoading, error: newsError } = useAssetNews(assetId, 10)
   const refreshNews = useRefreshAssetNews(assetId, 10)
   const watchlist = useToggleWatchlist(assetId)
+  const { data: transactions = [] } = useTransactions()
 
   if (isLoading || !asset) {
     return (
@@ -164,89 +170,44 @@ export default function AssetDetail() {
         <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
           Fundamentals
         </h2>
-        <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-          {asset.asset_type === 'STOCK' && (
-            <>
-              <div>
-                <StatRow label="Exchange" value={asset.exchange} />
-                <StatRow label="Sector" value={asset.sector} />
-                <StatRow label="Industry" value={asset.industry} />
-                <StatRow label="Country" value={asset.country} />
-              </div>
-              <div>
-                <StatRow
-                  label="Market Cap"
-                  value={asset.market_cap ? formatCurrency(asset.market_cap, { compact: true }) : null}
-                />
-                <StatRow label="P/E Ratio" value={asset.pe_ratio ? asset.pe_ratio.toFixed(2) : null} />
-                <StatRow
-                  label="52W High"
-                  value={asset.week52_high ? formatCurrency(asset.week52_high) : null}
-                />
-                <StatRow
-                  label="52W Low"
-                  value={asset.week52_low ? formatCurrency(asset.week52_low) : null}
-                />
-              </div>
-            </>
-          )}
-
-          {asset.asset_type === 'MUTUAL_FUND' && (
-            <>
-              <div>
-                <StatRow label="Fund House" value={asset.fund_house} />
-                <StatRow label="Category" value={asset.category} />
-                <StatRow label="Sub-category" value={asset.sub_category} />
-                <StatRow label="Plan" value={asset.plan_type} />
-                <StatRow label="Option" value={asset.option_type} />
-              </div>
-              <div>
-                <StatRow
-                  label="Expense Ratio"
-                  value={asset.expense_ratio ? `${Number(asset.expense_ratio).toFixed(2)}%` : null}
-                />
-                <StatRow
-                  label="AUM"
-                  value={asset.aum ? formatCurrency(asset.aum, { compact: true }) : null}
-                />
-                <StatRow label="Risk Level" value={asset.risk_level} />
-                <StatRow label="Benchmark" value={asset.benchmark} />
-              </div>
-            </>
-          )}
-
-          {asset.asset_type === 'BOND' && (
-            <>
-              <div>
-                <StatRow label="Issuer" value={asset.issuer} />
-                <StatRow
-                  label="Coupon Rate"
-                  value={asset.coupon_rate ? `${Number(asset.coupon_rate).toFixed(2)}%` : null}
-                />
-                <StatRow
-                  label="Face Value"
-                  value={asset.face_value ? formatCurrency(asset.face_value) : null}
-                />
-              </div>
-              <div>
-                <StatRow label="Maturity Date" value={asset.maturity_date ? formatDate(asset.maturity_date) : null} />
-                <StatRow label="Credit Rating" value={asset.credit_rating} />
-                <StatRow label="Payment Frequency" value={asset.payment_frequency} />
-                <StatRow
-                  label="Current Yield"
-                  value={asset.current_yield ? `${Number(asset.current_yield).toFixed(2)}%` : null}
-                />
-              </div>
-            </>
-          )}
-        </div>
+        <FundamentalsGrid asset={asset} />
 
         {asset.description && (
-          <p className="mt-4 border-t border-border pt-4 text-sm leading-relaxed text-text-secondary">
+          <p className="mt-5 border-t border-border pt-4 text-sm leading-relaxed text-text-secondary">
             {asset.description}
           </p>
         )}
+        {asset.website && (
+          <a
+            href={asset.website}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="mt-2 inline-block text-sm text-accent hover:text-accent-hover"
+          >
+            {asset.website.replace(/^https?:\/\//, '')}
+          </a>
+        )}
       </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
+            Ranked among assets you track
+          </h2>
+          <PeerRankPanel assetId={assetId} period="1Y" />
+        </Card>
+
+        <PriceTargetCard assetId={Number(assetId)} asset={asset} />
+      </div>
+
+      {transactions.some((t) => t.txn_type === 'DIVIDEND' && t.asset_id === Number(assetId)) && (
+        <Card>
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
+            Dividend history
+          </h2>
+          <DividendHistory assetId={Number(assetId)} transactions={transactions} />
+        </Card>
+      )}
 
       <div>
         <div className="mb-3 flex items-center justify-between gap-3">

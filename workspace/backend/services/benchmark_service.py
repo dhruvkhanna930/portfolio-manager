@@ -169,7 +169,7 @@ def compare(codes=None, period="1Y", fd_rate_pct=None, inflation_rate_pct=None):
     with is_assumption so the UI can never present a made-up FD rate as if it
     were fetched data.
     """
-    from services import analytics_service
+    from services import risk_service
 
     if period not in VALID_PERIODS:
         raise ValueError(f"invalid benchmark period: {period}")
@@ -180,10 +180,15 @@ def compare(codes=None, period="1Y", fd_rate_pct=None, inflation_rate_pct=None):
         Decimal(str(inflation_rate_pct)) if inflation_rate_pct is not None else DEFAULT_INFLATION_RATE_PCT
     )
 
-    # The portfolio's own value series is the anchor -- benchmarks are clipped to
-    # its window so all lines cover the same span and start at a common 100.
-    perf = analytics_service.get_portfolio_performance(period=period if period != "ALL" else "ALL")
-    portfolio_points = [(p["date"], p["value"]) for p in perf["points"] if p["value"] is not None]
+    # TIME-WEIGHTED, not the §6.8 value path. The value path moves when the user
+    # deposits or buys, so rebasing it to 100 and drawing it next to an index
+    # reports contributions as outperformance -- on this portfolio that showed as
+    # "+795%" against a roughly flat NIFTY, purely because money was added. The
+    # time-weighted index is growth-of-one-rupee-invested, which is the basis
+    # indices are quoted on and the only one comparable to them (same reasoning
+    # as §14.1's return series).
+    _, tw_index = risk_service.get_portfolio_return_series(period=period)
+    portfolio_points = [(d, tw_index[d]) for d in sorted(tw_index)]
 
     if portfolio_points:
         start_date = portfolio_points[0][0]
@@ -197,7 +202,7 @@ def compare(codes=None, period="1Y", fd_rate_pct=None, inflation_rate_pct=None):
         series.append(
             {
                 "code": "PORTFOLIO",
-                "label": "My Portfolio",
+                "label": "My Portfolio (time-weighted)",
                 "is_assumption": False,
                 "points": _rebase_to_100(portfolio_points),
             }
@@ -248,8 +253,9 @@ def compare(codes=None, period="1Y", fd_rate_pct=None, inflation_rate_pct=None):
         "inflation_rate_pct": inflation_rate,
         "note": (
             "All lines are rebased to 100 at the start of the period so they can be "
-            "compared on growth, not absolute level. FD and inflation are user-editable "
-            "assumptions, not fetched market data."
+            "compared on growth, not absolute level. The portfolio line is time-weighted "
+            "-- deposits and new purchases don't count as growth, so it is comparable to "
+            "an index. FD and inflation are user-editable assumptions, not fetched market data."
         ),
         "series": series,
     }

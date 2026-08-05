@@ -56,3 +56,30 @@ are gitignored and never committed.
 - `backend/` — Flask app factory, routes → services → models (see CLAUDE.md §10)
 - `frontend/` — React 18 + Vite + Tailwind, dark theme (see CLAUDE.md §9)
 - `CLAUDE.md` — single source of truth for product spec, schema, and conventions
+
+## Deliberately not built
+
+Called out here rather than silently skipped (CLAUDE.md §15.7, reasons in §0.3 item 20):
+
+- **Gamification** (badges, streaks, levels) — a tonal mismatch for a serious investing
+  tool, and gamifying trading behaviour is a documented product criticism in fintech.
+- **Net-worth / financial-independence tracking** — this is a stocks/MF/bonds portfolio
+  app, not a net-worth aggregator. Goals measure portfolio value only, and are not tied
+  to specific holdings or liabilities.
+- **Efficient-frontier portfolio optimization** — high effort with real risk of being
+  subtly wrong. The rebalancing simulator shows what given weights *would have done*
+  historically; it does not claim to find an optimum.
+- **Drag-and-drop custom dashboard widgets** — low return next to everything else.
+- **Real push / email notifications** — there is no login and no contact details in this
+  app, so there is nowhere to send anything. Alerts are in-app only and recomputed on
+  each read; nothing is ever queued, sent, or marked "delivered".
+
+Two further constraints worth knowing:
+
+- **3D is decorative only.** The Three.js layer on the Home hero encodes nothing but the
+  sign of today's P/L as a colour tint, which is also printed as a number beside it. All
+  real financial data stays in 2D charts — 3D bar/pie/line charts distort perceived value
+  through depth and perspective (§15.1).
+- **Peer ranking is scoped to your own assets.** "Ranked #2 of 5" compares against the
+  assets you have added to this app, not an exchange-wide or official sector ranking. The
+  UI states this next to the rank.

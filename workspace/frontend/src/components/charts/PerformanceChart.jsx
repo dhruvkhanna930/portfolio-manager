@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from '../../utils/formatters'
 import Skeleton from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import Tabs from '../ui/Tabs'
+import { chartTokens } from './chartTheme'
 
 const PERIOD_TABS = [
   { key: '1W', label: '1W' },
@@ -38,7 +39,8 @@ export default function PerformanceChart() {
   const change = first != null && last != null ? last - first : null
   const changePct = change != null && first ? (change / first) * 100 : null
   const isUp = change == null || change >= 0
-  const lineColor = isUp ? '#16C784' : '#F6465D'
+  const t = chartTokens()
+  const lineColor = isUp ? t.positive : t.negative
 
   const chartData = points.map((p) => ({ date: p.date, value: Number(p.value) }))
 
@@ -80,8 +82,8 @@ export default function PerformanceChart() {
               <XAxis
                 dataKey="date"
                 tickFormatter={(d) => formatDate(d, { day: 'numeric', month: 'short' })}
-                stroke="#5C6270"
-                tick={{ fontSize: 11, fill: '#9298A5' }}
+                stroke={t.border}
+                tick={{ fontSize: 11, fill: t.textSecondary }}
                 tickLine={false}
                 axisLine={false}
                 minTickGap={40}
@@ -89,8 +91,8 @@ export default function PerformanceChart() {
               <YAxis
                 domain={['auto', 'auto']}
                 tickFormatter={(v) => formatCurrency(v, { compact: true })}
-                stroke="#5C6270"
-                tick={{ fontSize: 11, fill: '#9298A5' }}
+                stroke={t.border}
+                tick={{ fontSize: 11, fill: t.textSecondary }}
                 tickLine={false}
                 axisLine={false}
                 width={64}

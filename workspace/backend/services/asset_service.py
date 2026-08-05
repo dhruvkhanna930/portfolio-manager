@@ -206,6 +206,26 @@ def get_asset_detail(asset_id):
             data["week52_high"] = info.get("fiftyTwoWeekHigh")
             data["week52_low"] = info.get("fiftyTwoWeekLow")
             data["description"] = info.get("longBusinessSummary")
+            # §15.4: the rest of what .info genuinely returns. Every key here is
+            # a real yfinance field -- anything it omits for a given ticker stays
+            # None and the UI hides that row, rather than being back-filled with
+            # a guess.
+            data["forward_pe"] = info.get("forwardPE")
+            data["price_to_book"] = info.get("priceToBook")
+            data["book_value"] = info.get("bookValue")
+            data["dividend_yield"] = info.get("dividendYield")
+            data["beta"] = info.get("beta")
+            data["eps"] = info.get("trailingEps")
+            data["profit_margin"] = info.get("profitMargins")
+            data["return_on_equity"] = info.get("returnOnEquity")
+            data["debt_to_equity"] = info.get("debtToEquity")
+            data["revenue"] = info.get("totalRevenue")
+            data["employees"] = info.get("fullTimeEmployees")
+            data["website"] = info.get("website")
+            data["day_high"] = info.get("dayHigh")
+            data["day_low"] = info.get("dayLow")
+            data["volume"] = info.get("volume")
+            data["avg_volume"] = info.get("averageVolume")
         except Exception:
             logger.warning("Could not fetch live fundamentals for %s", asset.symbol, exc_info=True)
 
@@ -275,3 +295,90 @@ def get_similar_assets(asset_id, limit=SIMILAR_ASSETS_LIMIT):
     # BOND: no rich category field to filter on -- same-type-only is the whole rule.
 
     return query.order_by(AssetMetadata.name).limit(limit).all()
+
+
+def get_peer_ranking(asset_id, period="1Y"):
+    """Where this asset sits among *the assets in your own database* (§15.4).
+
+    This is deliberately NOT a market-wide or exchange-wide ranking, and the
+    response says so in `scope_note`: the comparison set is only the assets you
+    have resolved into this app, which is a self-selected handful, not a sector
+    universe. Ranking it against that set is a fair statement about your own
+    watchlist; calling it "rank in sector" would not be.
+
+    Ranked on total return over the period, computed from cached price history.
+    """
+    from services import risk_service
+
+    asset = db.session.get(AssetMetadata, asset_id)
+    if asset is None:
+        raise AssetNotFoundError(asset_id)
+
+    peers = get_similar_assets(asset_id, limit=50)
+    universe = [asset] + list(peers)
+    start = risk_service._period_start(period)
+
+    scored = []
+    for candidate in universe:
+        prices = risk_service.get_asset_price_series(candidate.asset_id, start_date=start)
+        if len(prices) < 2:
+            continue
+        ordered = sorted(prices)
+        first, last = prices[ordered[0]], prices[ordered[-1]]
+        if first <= 0:
+            continue
+        scored.append(
+            {
+                "asset_id": candidate.asset_id,
+                "symbol": candidate.symbol,
+                "name": candidate.name,
+                "return_pct": (last - first) / first * 100,
+                "observations": len(prices),
+            }
+        )
+
+    if not any(s["asset_id"] == asset_id for s in scored):
+        return {
+            "asset_id": asset_id,
+            "period": period,
+            "rank": None,
+            "total": len(scored),
+            "peers": [],
+            "comparison_basis": _peer_basis(asset),
+            "scope_note": _PEER_SCOPE_NOTE,
+            "reason": "Not enough cached price history for this asset in the selected period.",
+        }
+
+    scored.sort(key=lambda s: s["return_pct"], reverse=True)
+    for index, row in enumerate(scored, start=1):
+        row["rank"] = index
+        row["is_current"] = row["asset_id"] == asset_id
+
+    rank = next(row["rank"] for row in scored if row["is_current"])
+    return {
+        "asset_id": asset_id,
+        "period": period,
+        "rank": rank,
+        "total": len(scored),
+        "peers": scored,
+        "comparison_basis": _peer_basis(asset),
+        "scope_note": _PEER_SCOPE_NOTE,
+    }
+
+
+_PEER_SCOPE_NOTE = (
+    "Ranked only against assets already added to this app -- not an exchange-wide or "
+    "official sector ranking."
+)
+
+
+def _peer_basis(asset):
+    if asset.asset_type == "STOCK" and asset.stock_details and asset.stock_details.sector:
+        return f"Stocks you track in {asset.stock_details.sector}"
+    if (
+        asset.asset_type == "MUTUAL_FUND"
+        and asset.mutual_fund_details
+        and asset.mutual_fund_details.category
+    ):
+        return f"Funds you track in {asset.mutual_fund_details.category}"
+    return f"{asset.asset_type.replace('_', ' ').title()}s you track"

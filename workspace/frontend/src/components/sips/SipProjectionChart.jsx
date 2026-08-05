@@ -3,6 +3,7 @@ import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'rec
 import { calcSip } from '../../api/calculators'
 import { formatCurrency } from '../../utils/formatters'
 import Skeleton from '../ui/Skeleton'
+import { chartTokens } from '../charts/chartTheme'
 
 // SIP frequency isn't always monthly, but the Phase 9 projection engine
 // (sip_calc_projected) is a monthly-compounding model per CLAUDE.md §6.12 Mode A.
@@ -30,6 +31,7 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function SipProjectionChart({ sip, annualReturnPct, years, stepUpPct }) {
+  const t = chartTokens()
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -104,23 +106,23 @@ export default function SipProjectionChart({ sip, annualReturnPct, years, stepUp
           <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
             <defs>
               <linearGradient id={`sipFill-${sip.sip_id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#22D3A6" stopOpacity={0.28} />
-                <stop offset="100%" stopColor="#22D3A6" stopOpacity={0} />
+                <stop offset="0%" stopColor={t.accent} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={t.accent} stopOpacity={0} />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="year"
               tickFormatter={(y) => `Y${y}`}
-              stroke="#5C6270"
-              tick={{ fontSize: 11, fill: '#9298A5' }}
+              stroke={t.border}
+              tick={{ fontSize: 11, fill: t.textSecondary }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
               domain={['auto', 'auto']}
               tickFormatter={(v) => formatCurrency(v, { compact: true })}
-              stroke="#5C6270"
-              tick={{ fontSize: 11, fill: '#9298A5' }}
+              stroke={t.border}
+              tick={{ fontSize: 11, fill: t.textSecondary }}
               tickLine={false}
               axisLine={false}
               width={56}
@@ -129,7 +131,7 @@ export default function SipProjectionChart({ sip, annualReturnPct, years, stepUp
             <Area
               type="monotone"
               dataKey="value"
-              stroke="#22D3A6"
+              stroke={t.accent}
               strokeWidth={2}
               fill={`url(#sipFill-${sip.sip_id})`}
               isAnimationActive

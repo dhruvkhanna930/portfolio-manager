@@ -20,7 +20,7 @@ export default function Modal({ open, onClose, title, children, className }) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -29,7 +29,7 @@ export default function Modal({ open, onClose, title, children, className }) {
         >
           <motion.div
             className={cn(
-              'w-full max-w-md rounded border border-border bg-surface p-6 shadow-xl',
+              'w-full max-w-md rounded border border-border bg-surface p-6 shadow-2xl',
               className
             )}
             initial={{ opacity: 0, scale: 0.96, y: 8 }}

@@ -82,3 +82,45 @@ export async function fetchMarketMood() {
   const { data } = await apiClient.get('/market/mood')
   return data
 }
+
+// --- Phase 15: supporting reads for the visual layer (CLAUDE.md §15) ---
+
+export async function fetchRiskReturn(period = '1Y') {
+  const { data } = await apiClient.get('/analytics/risk-return', { params: { period } })
+  return data
+}
+
+export async function fetchPortfolioSnapshot(onDate) {
+  const { data } = await apiClient.get('/portfolio/snapshot', { params: { on: onDate } })
+  return data
+}
+
+export async function fetchTimelineBounds() {
+  const { data } = await apiClient.get('/portfolio/timeline-bounds')
+  return data
+}
+
+export async function fetchPeerRank(assetId, period = '1Y') {
+  const { data } = await apiClient.get(`/assets/${assetId}/peer-rank`, { params: { period } })
+  return data
+}
+
+export async function fetchAlerts() {
+  const { data } = await apiClient.get('/alerts')
+  return data
+}
+
+export async function fetchPriceTargets() {
+  const { data } = await apiClient.get('/price-targets')
+  return data
+}
+
+export async function createPriceTarget(payload) {
+  const { data } = await apiClient.post('/price-targets', payload)
+  return data
+}
+
+export async function deletePriceTarget(targetId) {
+  await apiClient.delete(`/price-targets/${targetId}`)
+  return targetId
+}

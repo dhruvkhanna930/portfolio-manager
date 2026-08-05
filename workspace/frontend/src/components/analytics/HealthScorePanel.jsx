@@ -1,12 +1,19 @@
 import { AlertTriangle, CheckCircle2, Lightbulb } from 'lucide-react'
 
 import { Card, Skeleton } from '../ui'
+import Gauge from '../charts/Gauge'
 import { useHealthScore } from '../../hooks/useAdvancedAnalytics'
 
-const BAND_TONE = {
-  Strong: 'text-positive',
-  Moderate: 'text-warning',
-  'Needs attention': 'text-negative',
+const BAND_GAUGE_TONE = {
+  Strong: 'positive',
+  Moderate: 'accent',
+  'Needs attention': 'negative',
+}
+
+const BAND_GLOW = {
+  Strong: '--positive',
+  Moderate: '--accent',
+  'Needs attention': '--negative',
 }
 
 const COMPONENT_LABELS = {
@@ -72,21 +79,31 @@ export default function HealthScorePanel({ period = '1Y' }) {
   }
 
   return (
-    <Card className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    // §15.3 names the Health Score card as one of the three places glass/glow is
+    // welcome. The treatment sits behind the content, never over the numbers.
+    <Card className="relative isolate space-y-5 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background: `radial-gradient(42% 62% at 86% 6%, color-mix(in srgb, var(${BAND_GLOW[data.band] ?? '--accent'}) 13%, transparent) 0%, transparent 70%)`,
+        }}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-5">
+        <div className="min-w-[14rem] flex-1">
           <h2 className="text-lg font-semibold text-text-primary">Portfolio Health Score</h2>
           <p className="mt-0.5 text-sm text-text-secondary">
             A weighted composite of the four measures below.
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-4xl font-semibold tabular-nums text-text-primary">
-            {data.health_score}
-            <span className="text-lg text-text-muted"> / 100</span>
-          </div>
-          <div className={`text-sm ${BAND_TONE[data.band] ?? 'text-text-secondary'}`}>{data.band}</div>
-        </div>
+        <Gauge
+          value={data.health_score}
+          max={100}
+          size={168}
+          bandLabel={data.band}
+          tone={BAND_GAUGE_TONE[data.band] ?? 'accent'}
+        />
       </div>
 
       <div>

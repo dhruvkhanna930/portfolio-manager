@@ -40,7 +40,7 @@ export default function InvestmentsDropdown() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         className={cn(
-          'flex items-center gap-1 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150',
+          'flex items-center gap-1 whitespace-nowrap rounded px-2 py-1.5 text-sm font-medium transition-colors duration-150 xl:px-3',
           isActive
             ? 'bg-surface text-text-primary'
             : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'

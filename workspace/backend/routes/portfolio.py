@@ -10,7 +10,8 @@ from schemas.analytics import (
 )
 from schemas.portfolio import HoldingSchema, HoldingWithMetricsSchema
 from schemas.tag import HoldingTagAssignSchema, TagSchema
-from services import analytics_service, portfolio_service as svc, tag_service
+from schemas.visual import SnapshotQuerySchema, SnapshotSchema, TimelineBoundsSchema
+from services import analytics_service, portfolio_service as svc, snapshot_service, tag_service
 from services.portfolio_service import HoldingNotFoundError
 from services.tag_service import HoldingNotFoundError as TagHoldingNotFoundError, TagNotAssignedError
 
@@ -90,3 +91,22 @@ class HoldingTagDetail(MethodView):
         except TagNotAssignedError:
             abort(404, message=f"Tag {tag_id} is not assigned to holding {holding_id}")
         return holding.tags
+
+
+@blp.route("/snapshot")
+class PortfolioSnapshot(MethodView):
+    @blp.arguments(SnapshotQuerySchema, location="query")
+    @blp.response(200, SnapshotSchema)
+    def get(self, args):
+        """Portfolio state as it actually stood on a past date (§15 timeline
+        scrubber) -- the same §6.8 replay, evaluated at one date and broken out
+        per holding.
+        """
+        return snapshot_service.get_snapshot(args["on"])
+
+
+@blp.route("/timeline-bounds")
+class PortfolioTimelineBounds(MethodView):
+    @blp.response(200, TimelineBoundsSchema)
+    def get(self):
+        return snapshot_service.get_timeline_bounds()
