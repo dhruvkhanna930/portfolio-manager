@@ -27,3 +27,16 @@ class SipCreateSchema(Schema):
     start_date = fields.Date(required=True)
     end_date = fields.Date(allow_none=True, load_default=None)
     day_of_cycle = fields.Integer(allow_none=True, load_default=None)
+
+
+class SipUpdateSchema(Schema):
+    """All fields optional -- a PUT only touches what's provided. asset_id and
+    start_date are deliberately excluded: changing the underlying asset or the
+    plan's start would make "plan" a misnomer, that's really a new SIP.
+    """
+
+    amount = fields.Decimal(as_string=True, validate=validate.Range(min=0, min_inclusive=False))
+    frequency = fields.String(validate=validate.OneOf(["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY"]))
+    end_date = fields.Date(allow_none=True)
+    day_of_cycle = fields.Integer(allow_none=True)
+    is_active = fields.Boolean()

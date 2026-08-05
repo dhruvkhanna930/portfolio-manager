@@ -18,6 +18,10 @@ class LiveSearchQuerySchema(Schema):
     type = fields.String(load_default="STOCK", validate=validate.OneOf(SEARCHABLE_ASSET_TYPES))
 
 
+class OwnSearchQuerySchema(Schema):
+    q = fields.String(required=True, validate=validate.Length(min=1))
+
+
 class LiveSearchResultSchema(Schema):
     symbol = fields.String()
     name = fields.String()

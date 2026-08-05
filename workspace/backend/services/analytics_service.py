@@ -379,36 +379,45 @@ def sip_calc_projected(monthly_amount, annual_return_pct, years, step_up_pct=Non
     monthly_rate = annual_return_pct / 100 / 12
     months = int(years * 12)
 
-    if monthly_rate == 0:
-        # No growth: FV = P × n
-        total_invested = monthly_amount * months
-        final_value = total_invested
-        xirr_equivalent = Decimal("0")
+    # Running-value recurrence: value(m) = value(m-1)*(1+r) + payment(m). This is
+    # algebraically identical to summing each payment compounded forward to the
+    # final month (sum payment(k)*(1+r)^(months-k)) -- but walking it one month at
+    # a time means the running total *is* the portfolio value at every intermediate
+    # month "for free", which is what the chart on the SIPs page (Phase 10) needs.
+    # Same engine, same final numbers, just observed along the way instead of only
+    # at the end.
+    total_invested = Decimal("0")
+    value = Decimal("0")
+    yearly_breakdown = []
+
+    for month in range(1, months + 1):
+        years_elapsed = (month - 1) // 12
+        step_multiplier = (1 + step_up_pct / 100) ** years_elapsed
+        monthly_pay = monthly_amount * step_multiplier
+
+        total_invested += monthly_pay
+        value = value * (1 + monthly_rate) + monthly_pay
+
+        if month % 12 == 0 or month == months:
+            yearly_breakdown.append(
+                {
+                    "month": month,
+                    "year": Decimal(month) / Decimal(12),
+                    "invested": total_invested,
+                    "value": value,
+                }
+            )
+
+    final_value = value
+
+    # XIRR approximation: assume linear cashflows for projected mode
+    # (real XIRR would need pyxirr, which requires actual dates)
+    if total_invested > 0 and months > 0:
+        ratio = float(final_value / total_invested)
+        xirr_float = ((ratio) ** (1.0 / float(years)) - 1.0) * 100.0
+        xirr_equivalent = Decimal(str(xirr_float))
     else:
-        # Standard formula with step-up: month-by-month loop
-        total_invested = Decimal("0")
-        final_value = Decimal("0")
-
-        for month in range(1, months + 1):
-            # Apply step-up: every 12 months, increase the base amount
-            years_elapsed = (month - 1) // 12
-            step_multiplier = (1 + step_up_pct / 100) ** years_elapsed
-            monthly_pay = monthly_amount * step_multiplier
-
-            total_invested += monthly_pay
-            # Compound forward to end-of-period
-            remaining_months = months - month
-            growth_factor = (1 + monthly_rate) ** remaining_months
-            final_value += monthly_pay * growth_factor
-
-        # XIRR approximation: assume linear cashflows for projected mode
-        # (real XIRR would need pyxirr, which requires actual dates)
-        if total_invested > 0:
-            ratio = float(final_value / total_invested)
-            xirr_float = ((ratio) ** (1.0 / float(years)) - 1.0) * 100.0
-            xirr_equivalent = Decimal(str(xirr_float))
-        else:
-            xirr_equivalent = Decimal("0")
+        xirr_equivalent = Decimal("0")
 
     return {
         "mode": "projected",
@@ -419,6 +428,7 @@ def sip_calc_projected(monthly_amount, annual_return_pct, years, step_up_pct=Non
         "months": months,
         "total_invested": total_invested,
         "final_value": final_value,
+        "yearly_breakdown": yearly_breakdown,
         "total_return": final_value - total_invested,
         "total_return_pct": (final_value - total_invested) / total_invested * 100 if total_invested else Decimal("0"),
     }
