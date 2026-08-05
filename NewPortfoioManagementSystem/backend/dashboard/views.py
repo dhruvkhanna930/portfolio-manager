@@ -1,5 +1,6 @@
 import csv
 import json
+import os
 import requests
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -72,6 +73,7 @@ def dashboard(request):
     return redirect('risk-profile')
 
 
+@login_required
 def get_portfolio_insights(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
@@ -88,6 +90,7 @@ def get_portfolio_insights(request):
     return JsonResponse({"Error": str(e)})
 
 
+@login_required
 def update_values(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
@@ -120,6 +123,7 @@ def update_values(request):
     return JsonResponse({"Error": str(e)})
 
 
+@login_required
 def get_financials(request):
   try:
     fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
@@ -168,6 +172,7 @@ def profile(request):
   })
 
 
+@login_required
 def add_holding(request):
   if request.method == "POST":
     try:
@@ -178,7 +183,10 @@ def add_holding(request):
       number_stocks = int(request.POST['number-stocks'])
       ts = TimeSeries(key=get_alphavantage_key(), output_format='json')
       data, meta_data = ts.get_daily(symbol=company_symbol, outputsize='compact')
-      buy_price = float(data[request.POST['date']]['4. close'])
+      try:
+        buy_price = float(data[request.POST['date']]['4. close'])
+      except KeyError:
+        return HttpResponse("No trading data for the selected date — markets were closed on this day. Please choose a trading day.", status=400)
       fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
       data, meta_data = fd.get_company_overview(symbol=company_symbol)
       sector = data['Sector']
@@ -192,8 +200,8 @@ def add_holding(request):
 
       if not found:
         c = StockHolding.objects.create(
-          portfolio=portfolio, 
-          company_name=company_name, 
+          portfolio=portfolio,
+          company_name=company_name,
           company_symbol=company_symbol,
           number_of_shares=number_stocks,
           sector=sector
@@ -206,6 +214,7 @@ def add_holding(request):
       print(e)
       return HttpResponse("Error adding holding", status=400)
 
+@login_required
 def send_company_list(request):
   csv_path = os.path.join(os.path.dirname(__file__), '..', 'nasdaq-listed.csv')
   with open(csv_path) as csv_file:
@@ -274,12 +283,9 @@ def fetch_news():
 
 
 def backtesting(request):
-  print('Function Called')
-  try:
-    output = sp.check_output("quantdom", shell=True)
-  except sp.CalledProcessError:
-    output = 'No such command'
-  return HttpResponse("Success")
+  return JsonResponse({
+    "Error": "Backtesting feature is not yet implemented. Coming soon!"
+  }, status=501)
 
 
 @login_required
