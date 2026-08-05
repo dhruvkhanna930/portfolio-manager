@@ -1,0 +1,18 @@
+@import './styles/theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
