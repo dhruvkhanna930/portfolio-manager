@@ -1,7 +1,13 @@
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 
-from schemas.analytics import AllocationQuerySchema, AllocationResponseSchema, PortfolioSummarySchema
+from schemas.analytics import (
+    AllocationQuerySchema,
+    AllocationResponseSchema,
+    PerformanceQuerySchema,
+    PerformanceResponseSchema,
+    PortfolioSummarySchema,
+)
 from schemas.portfolio import HoldingSchema, HoldingWithMetricsSchema
 from services import analytics_service, portfolio_service as svc
 from services.portfolio_service import HoldingNotFoundError
@@ -36,6 +42,14 @@ class PortfolioAllocation(MethodView):
     @blp.response(200, AllocationResponseSchema)
     def get(self, args):
         return analytics_service.get_allocation(by=args["by"])
+
+
+@blp.route("/performance")
+class PortfolioPerformance(MethodView):
+    @blp.arguments(PerformanceQuerySchema, location="query")
+    @blp.response(200, PerformanceResponseSchema)
+    def get(self, args):
+        return analytics_service.get_portfolio_performance(period=args["period"])
 
 
 @blp.route("/<int:holding_id>")
