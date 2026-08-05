@@ -5,10 +5,25 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime, timedelta
 from django.conf import settings
-import random
+from django.core.cache import cache
+import time
 import warnings
 warnings.filterwarnings('ignore')
 from .models import StockHolding
+import json
+
+
+def convert_to_json_serializable(obj):
+    """Convert numpy/pandas types to JSON serializable Python types"""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.integer, np.floating)):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: convert_to_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_to_json_serializable(item) for item in obj]
+    return obj
 
 try:
     from alpha_vantage.fundamentaldata import FundamentalData
@@ -141,20 +156,11 @@ class StockForecastingModel:
 
 
 def get_alphavantage_key():
-    """Get a random AlphaVantage API key from settings"""
+    """Get AlphaVantage API key from settings"""
     if not ALPHA_VANTAGE_AVAILABLE:
         return None
     try:
-        alphavantage_keys = [
-            settings.ALPHAVANTAGE_KEY1,
-            settings.ALPHAVANTAGE_KEY2,
-            settings.ALPHAVANTAGE_KEY3,
-            settings.ALPHAVANTAGE_KEY4,
-            settings.ALPHAVANTAGE_KEY5,
-            settings.ALPHAVANTAGE_KEY6,
-            settings.ALPHAVANTAGE_KEY7,
-        ]
-        return random.choice(alphavantage_keys)
+        return settings.ALPHAVANTAGE_KEY
     except:
         return None
 
@@ -164,6 +170,10 @@ def get_stock_fundamentals(symbol):
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info
+
+        # Check if we got valid data - must have currentPrice or regularMarketPrice
+        if not info or info is None or ('currentPrice' not in info and 'regularMarketPrice' not in info):
+            raise ValueError(f"No valid data returned for {symbol}")
 
         return {
             'symbol': symbol,
@@ -180,9 +190,6 @@ def get_stock_fundamentals(symbol):
             'fifty_two_week_low': float(info.get('fiftyTwoWeekLow', 0)) or 0,
         }
     except Exception as e:
-        print(f"Error fetching fundamentals for {symbol}: {str(e)}")
-        if ALPHA_VANTAGE_AVAILABLE:
-            return _get_fundamentals_alpha_vantage(symbol)
         return None
 
 
@@ -315,6 +322,7 @@ def recommend_stocks(portfolio, num_recommendations=10, use_ai=True):
                     if symbol not in recommendation_scores:
                         recommendation_scores[symbol] = 0
                     recommendation_scores[symbol] += similarity_matrix[i][j]
+            time.sleep(0.1)
 
         sorted_recommendations = sorted(
             recommendation_scores.items(),
@@ -327,6 +335,7 @@ def recommend_stocks(portfolio, num_recommendations=10, use_ai=True):
             fundamentals = get_stock_fundamentals(symbol)
             if fundamentals:
                 fundamentals['rule_score'] = round(score, 3)
+                fundamentals['similarity_score'] = round(score, 3)
                 recommendations.append(fundamentals)
 
         if use_ai:
@@ -381,7 +390,7 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10, use_ai=Tru
         stock_universe = get_popular_stocks_list()
         print(f"Searching {len(stock_universe)} stocks from universe")
 
-        for symbol in stock_universe:
+        for i, symbol in enumerate(stock_universe):
             if symbol not in valid_symbols:
                 fundamentals = get_stock_fundamentals(symbol)
                 if fundamentals:
@@ -399,7 +408,12 @@ def recommend_complementary_stocks(portfolio, num_recommendations=10, use_ai=Tru
 
                     if complementary_score > 0:
                         fundamentals['rule_score'] = complementary_score
+                        fundamentals['similarity_score'] = complementary_score
                         complementary_stocks.append(fundamentals)
+
+                # Rate limiting: small delay every 5 requests
+                if (i + 1) % 5 == 0:
+                    time.sleep(0.5)
 
         sorted_complementary = sorted(
             complementary_stocks,
@@ -441,6 +455,15 @@ def recommend_popular_stocks(num_recommendations=10, use_ai=True, preferred_sect
     - P/E ratio (valuation/quality)
     - Sector preference (if provided)
     """
+    # Cache key for popular stocks recommendations (cache for 24 hours)
+    cache_key = "recommendations_popular_stocks"
+
+    # Check if recommendations are cached
+    cached_recommendations = cache.get(cache_key)
+    if cached_recommendations:
+        print(f"\n[CACHE HIT] Using cached popular stocks recommendations\n")
+        return cached_recommendations
+
     print(f"\n[COLD-START FALLBACK] No portfolio found")
     print(f"[STRATEGY] Fetching live data for 200+ stocks from comprehensive list\n")
 
@@ -449,65 +472,75 @@ def recommend_popular_stocks(num_recommendations=10, use_ai=True, preferred_sect
 
     recommendations = []
 
-    for symbol in popular_list:
+    for i, symbol in enumerate(popular_list):
         try:
             fundamentals = get_stock_fundamentals(symbol)
-            if fundamentals:
-                ticker = yf.Ticker(symbol)
-                info = ticker.info
+            if fundamentals is None:
+                continue
 
-                market_cap = float(info.get('marketCap', 0)) or 0
-                pe_ratio = float(info.get('trailingPE', 0)) or 0
-                beta = float(info.get('beta', 1.0)) or 1.0
-                dividend_yield = float(info.get('dividendYield', 0)) or 0
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
 
-                # LIVE DATA SCORING:
-                # Market Cap Score (Popularity/Stability)
-                if market_cap >= 2e12:
-                    popularity_score = 100  # Mega-cap
-                elif market_cap >= 500e9:
-                    popularity_score = 95   # Large-cap
-                elif market_cap >= 100e9:
-                    popularity_score = 85   # Mid-cap
+            if not info or info is None:
+                continue
+
+            market_cap = float(info.get('marketCap', 0)) or 0
+            pe_ratio = float(info.get('trailingPE', 0)) or 0
+            beta = float(info.get('beta', 1.0)) or 1.0
+            dividend_yield = float(info.get('dividendYield', 0)) or 0
+
+            # LIVE DATA SCORING:
+            # Market Cap Score (Popularity/Stability)
+            if market_cap >= 2e12:
+                popularity_score = 100  # Mega-cap
+            elif market_cap >= 500e9:
+                popularity_score = 95   # Large-cap
+            elif market_cap >= 100e9:
+                popularity_score = 85   # Mid-cap
+            else:
+                popularity_score = 70   # Small-cap
+
+            # P/E Quality Score
+            if pe_ratio > 0:
+                if pe_ratio < 15:
+                    quality_score = 95  # Undervalued
+                elif pe_ratio < 25:
+                    quality_score = 85  # Fair value
+                elif pe_ratio < 35:
+                    quality_score = 75  # Premium
                 else:
-                    popularity_score = 70   # Small-cap
+                    quality_score = 60  # Very premium
+            else:
+                quality_score = 50
 
-                # P/E Quality Score
-                if pe_ratio > 0:
-                    if pe_ratio < 15:
-                        quality_score = 95  # Undervalued
-                    elif pe_ratio < 25:
-                        quality_score = 85  # Fair value
-                    elif pe_ratio < 35:
-                        quality_score = 75  # Premium
-                    else:
-                        quality_score = 60  # Very premium
-                else:
-                    quality_score = 50
+            # Risk Score (Beta)
+            if beta < 0.8:
+                risk_score = 95  # Low risk
+            elif beta < 1.2:
+                risk_score = 85  # Medium risk
+            else:
+                risk_score = 75  # Higher risk
 
-                # Risk Score (Beta)
-                if beta < 0.8:
-                    risk_score = 95  # Low risk
-                elif beta < 1.2:
-                    risk_score = 85  # Medium risk
-                else:
-                    risk_score = 75  # Higher risk
+            # Dividend Score
+            dividend_score = min(dividend_yield * 500, 100) if dividend_yield > 0 else 50
 
-                # Dividend Score
-                dividend_score = min(dividend_yield * 500, 100) if dividend_yield > 0 else 50
+            # Combined Rule Score (LIVE data weighted)
+            rule_score = (
+                popularity_score * 0.35 +
+                quality_score * 0.35 +
+                risk_score * 0.20 +
+                dividend_score * 0.10
+            )
 
-                # Combined Rule Score (LIVE data weighted)
-                rule_score = (
-                    popularity_score * 0.35 +
-                    quality_score * 0.35 +
-                    risk_score * 0.20 +
-                    dividend_score * 0.10
-                )
+            fundamentals['rule_score'] = round(rule_score, 2)
+            fundamentals['similarity_score'] = round(rule_score, 2)
+            fundamentals['source'] = 'cold_start_fallback_live'
+            fundamentals['market_cap_category'] = 'Mega' if market_cap >= 2e12 else 'Large' if market_cap >= 500e9 else 'Mid' if market_cap >= 100e9 else 'Small'
+            recommendations.append(fundamentals)
 
-                fundamentals['rule_score'] = round(rule_score, 2)
-                fundamentals['source'] = 'cold_start_fallback_live'
-                fundamentals['market_cap_category'] = 'Mega' if market_cap >= 2e12 else 'Large' if market_cap >= 500e9 else 'Mid' if market_cap >= 100e9 else 'Small'
-                recommendations.append(fundamentals)
+            # Rate limiting: small delay every 5 requests
+            if (i + 1) % 5 == 0:
+                time.sleep(0.5)
         except Exception as e:
             continue
 
@@ -529,9 +562,17 @@ def recommend_popular_stocks(num_recommendations=10, use_ai=True, preferred_sect
 
         recommendations.sort(key=lambda x: x.get('final_score', x['rule_score']), reverse=True)
 
-    print(f"[RESULT] Returning {min(len(recommendations), num_recommendations)} recommendations from {len(popular_list)} stocks")
+    result = recommendations[:num_recommendations]
+
+    # Convert numpy types to JSON serializable Python types
+    result = convert_to_json_serializable(result)
+
+    # Cache popular stocks recommendations for 24 hours
+    cache.set("recommendations_popular_stocks", result, 86400)
+
+    print(f"[RESULT] Returning {min(len(result), num_recommendations)} recommendations from {len(popular_list)} stocks")
     print("[SOURCES] Live market data (yfinance) + AI models (DistilBERT, LSTM)\n")
-    return recommendations[:num_recommendations]
+    return result
 
 
 def get_popular_stocks_list():
@@ -570,7 +611,7 @@ def get_popular_stocks_list():
             'AZO', 'URI', 'EMR', 'ETN', 'NOC', 'DE',
         ],
         'LARGE_CAP_ENERGY': [
-            'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'HES',
+            'XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX',
             'OXY', 'MAR', 'HAL', 'FANG', 'LNG', 'RIG',
         ],
         'LARGE_CAP_UTILITIES': [
@@ -582,7 +623,7 @@ def get_popular_stocks_list():
             'EQR', 'SPG', 'PSA', 'UMH', 'PTC', 'SBAC',
         ],
         'LARGE_CAP_MATERIALS': [
-            'NEM', 'FCX', 'TECK', 'SCCO', 'RIO', 'VALE', 'NUCOR', 'CLF',
+            'NEM', 'FCX', 'TECK', 'SCCO', 'RIO', 'VALE', 'CLF',
             'MOS', 'CF', 'WRK', 'APD', 'ECL', 'SHW',
         ],
         'MID_CAP_TECH': [
@@ -594,7 +635,7 @@ def get_popular_stocks_list():
             'NDAQ', 'KEYS', 'DFS', 'EFX', 'LYV', 'MPWR',
         ],
         'MID_CAP_HEALTHCARE': [
-            'ZTS', 'VRTX', 'EXAS', 'VEEV', 'DXCM', 'ALGN', 'XRAY', 'PODD',
+            'ZTS', 'VRTX', 'VEEV', 'DXCM', 'ALGN', 'XRAY', 'PODD',
             'RARE', 'DNLI', 'RGEN', 'TXMD', 'GNRC', 'INCY',
         ],
         'MID_CAP_CONSUMER': [
@@ -611,7 +652,7 @@ def get_popular_stocks_list():
         ],
         'SMALL_CAP_VALUE': [
             'PHM', 'RBLX', 'ATRC', 'GLPI', 'CEMP', 'JMIA', 'UPLD', 'VRSN',
-            'ZM', 'TTD', 'AVPT', 'SWI', 'STLA', 'VRM',
+            'ZM', 'TTD', 'AVPT', 'STLA', 'VRM',
         ],
         'DIVIDEND_STOCKS': [
             'O', 'SCHD', 'VYM', 'DGRO', 'KMI', 'ENB', 'TRP', 'LYB',
@@ -632,10 +673,20 @@ def get_popular_stocks_list():
 
 def get_portfolio_recommendations(portfolio, use_ai=True):
     """Get both similar and complementary stock recommendations for a portfolio"""
+    # Cache key for this portfolio's recommendations (cache for 24 hours)
+    cache_key = f"recommendations_portfolio_{portfolio.id}"
+
+    # Check if recommendations are cached
+    cached_recommendations = cache.get(cache_key)
+    if cached_recommendations:
+        print(f"[CACHE HIT] Using cached recommendations for portfolio {portfolio.id}")
+        return cached_recommendations
+
+    print(f"[CACHE MISS] Computing fresh recommendations for portfolio {portfolio.id}")
     similar_stocks = recommend_stocks(portfolio, num_recommendations=8, use_ai=use_ai)
     complementary_stocks = recommend_complementary_stocks(portfolio, num_recommendations=8, use_ai=use_ai)
 
-    return {
+    recommendations = {
         'similar_stocks': similar_stocks,
         'complementary_stocks': complementary_stocks,
         'ai_models_used': {
@@ -643,3 +694,11 @@ def get_portfolio_recommendations(portfolio, use_ai=True):
             'stock_forecasting': 'LSTM with Exponential Smoothing Fallback'
         } if use_ai else None
     }
+
+    # Convert numpy types to JSON serializable Python types
+    recommendations = convert_to_json_serializable(recommendations)
+
+    # Cache recommendations for 24 hours (86400 seconds)
+    cache.set(cache_key, recommendations, 86400)
+
+    return recommendations
