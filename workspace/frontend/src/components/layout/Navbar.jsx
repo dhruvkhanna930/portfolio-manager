@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { to: '/stocks', label: 'Stocks' },
   { to: '/mutual-funds', label: 'Mutual Funds' },
   { to: '/bonds', label: 'Bonds' },
+  { to: '/calculators', label: 'Calculators' },
 ]
 
 export default function Navbar() {

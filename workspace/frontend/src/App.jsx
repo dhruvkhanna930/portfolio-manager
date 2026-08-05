@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import Styleguide from './pages/Styleguide'
+import Calculators from './pages/Calculators'
 import ComingSoon from './pages/ComingSoon'
 import Portfolio from './pages/Portfolio'
 import Transactions from './pages/Transactions'
@@ -42,6 +43,7 @@ function App() {
           }
         />
         <Route path="/asset/:assetId" element={<AssetDetail />} />
+        <Route path="/calculators" element={<Calculators />} />
         <Route path="/styleguide" element={<Styleguide />} />
       </Route>
     </Routes>
