@@ -6,7 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from .models import Portfolio, StockHolding
+from .models import Portfolio, StockHolding, WalletTransaction
 from .portfolio_summary import build_portfolio_summary
 from .recommendations import get_portfolio_recommendations
 from riskprofile.models import RiskProfile
@@ -19,6 +19,14 @@ import subprocess as sp
 
 def get_alphavantage_key():
   return settings.ALPHAVANTAGE_KEY
+
+def _get_price_for_date(symbol, date):
+  ts = TimeSeries(key=get_alphavantage_key(), output_format='json')
+  data, meta_data = ts.get_daily(symbol=symbol, outputsize='compact')
+  try:
+    return float(data[date]['4. close'])
+  except KeyError:
+    raise ValueError(f"No trading data for {symbol} on {date} — markets were closed on this day. Please choose a trading day.")
 
 @login_required
 def dashboard(request):
@@ -63,6 +71,7 @@ def dashboard(request):
     context = {
       'holdings': holdings,
       'totalInvestment': portfolio.total_investment,
+      'walletBalance': portfolio.wallet_balance,
       'stocks': stocks,
       'sectors': sectors,
       'news': news
@@ -181,12 +190,10 @@ def add_holding(request):
       company_symbol = request.POST['company'].split('(')[1].split(')')[0]
       company_name = request.POST['company'].split('(')[0].strip()
       number_stocks = int(request.POST['number-stocks'])
-      ts = TimeSeries(key=get_alphavantage_key(), output_format='json')
-      data, meta_data = ts.get_daily(symbol=company_symbol, outputsize='compact')
       try:
-        buy_price = float(data[request.POST['date']]['4. close'])
-      except KeyError:
-        return HttpResponse("No trading data for the selected date — markets were closed on this day. Please choose a trading day.", status=400)
+        buy_price = _get_price_for_date(company_symbol, request.POST['date'])
+      except ValueError as e:
+        return HttpResponse(str(e), status=400)
       fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
       data, meta_data = fd.get_company_overview(symbol=company_symbol)
       sector = data['Sector']
@@ -298,3 +305,158 @@ def get_recommendations(request):
     return JsonResponse({"Error": "Portfolio not found"})
   except Exception as e:
     return JsonResponse({"Error": str(e)})
+
+
+@login_required
+def add_wallet_credit(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      amount = float(request.POST.get('amount', 0))
+      if amount <= 0:
+        return JsonResponse({"Error": "Amount must be greater than 0"}, status=400)
+      portfolio.wallet_balance += amount
+      portfolio.save()
+      WalletTransaction.objects.create(
+        portfolio=portfolio,
+        amount=amount,
+        transaction_type="CREDIT"
+      )
+      return JsonResponse({"WalletBalance": portfolio.wallet_balance})
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def add_to_cart(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      company_symbol = request.POST['company'].split('(')[1].split(')')[0]
+      company_name = request.POST['company'].split('(')[0].strip()
+      number_stocks = int(request.POST['number-stocks'])
+      try:
+        buy_price = _get_price_for_date(company_symbol, request.POST['date'])
+      except ValueError as e:
+        return JsonResponse({"Error": str(e)}, status=400)
+      item_total = buy_price * number_stocks
+      cart = request.session.get('cart', [])
+      cart.append({
+        'symbol': company_symbol,
+        'name': company_name,
+        'quantity': number_stocks,
+        'price': buy_price,
+        'date': request.POST['date'],
+        'subtotal': item_total
+      })
+      request.session['cart'] = cart
+      request.session.modified = True
+      cart_total = sum(item['subtotal'] for item in cart)
+      return JsonResponse({
+        "Success": True,
+        "CartTotal": cart_total,
+        "CartCount": len(cart),
+        "Item": {
+          'symbol': company_symbol,
+          'name': company_name,
+          'quantity': number_stocks,
+          'price': buy_price,
+          'subtotal': item_total
+        }
+      })
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def view_cart(request):
+  try:
+    cart = request.session.get('cart', [])
+    cart_total = sum(item['subtotal'] for item in cart)
+    return JsonResponse({
+      "Cart": cart,
+      "CartTotal": cart_total,
+      "CartCount": len(cart)
+    })
+  except Exception as e:
+    return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def remove_from_cart(request):
+  if request.method == "POST":
+    try:
+      index = int(request.POST.get('index', -1))
+      cart = request.session.get('cart', [])
+      if 0 <= index < len(cart):
+        cart.pop(index)
+        request.session['cart'] = cart
+        request.session.modified = True
+      cart_total = sum(item['subtotal'] for item in cart)
+      return JsonResponse({
+        "CartTotal": cart_total,
+        "CartCount": len(cart)
+      })
+    except Exception as e:
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def checkout_cart(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      cart = request.session.get('cart', [])
+      if not cart:
+        return JsonResponse({"Error": "Cart is empty"}, status=400)
+      cart_total = sum(item['subtotal'] for item in cart)
+      if portfolio.wallet_balance < cart_total:
+        return JsonResponse({
+          "Error": f"Insufficient wallet balance. Need {cart_total}, have {portfolio.wallet_balance}"
+        }, status=400)
+      portfolio.wallet_balance -= cart_total
+      portfolio.save()
+      WalletTransaction.objects.create(
+        portfolio=portfolio,
+        amount=cart_total,
+        transaction_type="PURCHASE"
+      )
+      holding_companies = StockHolding.objects.filter(portfolio=portfolio)
+      for item in cart:
+        company_symbol = item['symbol']
+        company_name = item['name']
+        number_stocks = item['quantity']
+        buy_price = item['price']
+        fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
+        data, meta_data = fd.get_company_overview(symbol=company_symbol)
+        sector = data['Sector']
+        found = False
+        for c in holding_companies:
+          if c.company_symbol == company_symbol:
+            c.buying_value.append([buy_price, number_stocks])
+            c.save()
+            found = True
+            break
+        if not found:
+          c = StockHolding.objects.create(
+            portfolio=portfolio,
+            company_name=company_name,
+            company_symbol=company_symbol,
+            number_of_shares=number_stocks,
+            sector=sector
+          )
+          c.buying_value.append([buy_price, number_stocks])
+          c.save()
+      request.session['cart'] = []
+      request.session.modified = True
+      portfolio.update_investment()
+      return JsonResponse({
+        "Success": True,
+        "WalletBalance": portfolio.wallet_balance,
+        "Message": "Purchase completed successfully"
+      })
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
