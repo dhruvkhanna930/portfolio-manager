@@ -14,3 +14,71 @@ export async function fetchPortfolioPerformance(period = '1Y') {
   const { data } = await apiClient.get('/portfolio/performance', { params: { period } })
   return data
 }
+
+// --- Phase 14: advanced analytics (CLAUDE.md §14.10) ---
+
+export async function fetchRisk({ scope = 'portfolio', assetId, period = '1Y', benchmarkCode = 'NIFTY50' } = {}) {
+  const params = { scope, period, benchmark_code: benchmarkCode }
+  if (assetId) params.asset_id = assetId
+  const { data } = await apiClient.get('/analytics/risk', { params })
+  return data
+}
+
+export async function fetchCorrelation(period = '1Y') {
+  const { data } = await apiClient.get('/analytics/correlation', { params: { period } })
+  return data
+}
+
+export async function fetchHealthScore(period = '1Y') {
+  const { data } = await apiClient.get('/analytics/health-score', { params: { period } })
+  return data
+}
+
+export async function fetchBenchmark({ codes = 'NIFTY50', period = '1Y', fdRatePct, inflationRatePct } = {}) {
+  const params = { codes, period }
+  if (fdRatePct != null) params.fd_rate_pct = fdRatePct
+  if (inflationRatePct != null) params.inflation_rate_pct = inflationRatePct
+  const { data } = await apiClient.get('/analytics/benchmark', { params })
+  return data
+}
+
+export async function fetchStatistics() {
+  const { data } = await apiClient.get('/analytics/statistics')
+  return data
+}
+
+export async function runMonteCarlo({ horizonDays = 252, nSimulations = 1000, period = 'ALL', seed } = {}) {
+  const body = { horizon_days: horizonDays, n_simulations: nSimulations, period }
+  if (seed != null) body.seed = seed
+  const { data } = await apiClient.post('/analytics/monte-carlo', body)
+  return data
+}
+
+export async function runRebalancePreview({ targetWeights, period = '1Y', benchmarkCode = 'NIFTY50' }) {
+  const { data } = await apiClient.post('/analytics/rebalance-preview', {
+    target_weights: targetWeights,
+    period,
+    benchmark_code: benchmarkCode,
+  })
+  return data
+}
+
+export async function fetchGoals() {
+  const { data } = await apiClient.get('/goals')
+  return data
+}
+
+export async function createGoal(payload) {
+  const { data } = await apiClient.post('/goals', payload)
+  return data
+}
+
+export async function deleteGoal(goalId) {
+  await apiClient.delete(`/goals/${goalId}`)
+  return goalId
+}
+
+export async function fetchMarketMood() {
+  const { data } = await apiClient.get('/market/mood')
+  return data
+}

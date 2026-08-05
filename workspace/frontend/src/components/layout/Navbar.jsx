@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { to: '/portfolio', label: 'My Portfolio' },
   { to: '/transactions', label: 'Transactions' },
   { to: '/sips', label: 'SIPs' },
+  { to: '/analytics', label: 'Analytics' },
   { to: '/news', label: 'News' },
   { to: '/calculators', label: 'Calculators' },
 ]
@@ -55,6 +56,9 @@ export default function Navbar() {
           <InvestmentsDropdown />
           <NavLink to="/sips" className={linkClass}>
             SIPs
+          </NavLink>
+          <NavLink to="/analytics" className={linkClass}>
+            Analytics
           </NavLink>
           <NavLink to="/news" className={linkClass}>
             News

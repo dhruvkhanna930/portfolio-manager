@@ -1,8 +1,9 @@
 from flask.views import MethodView
 from flask_smorest import Blueprint
 
+from schemas.advanced_analytics import MarketMoodSchema
 from schemas.market import MoversQuerySchema, MoversResponseSchema
-from services import market_service as svc
+from services import market_service as svc, mood_service
 
 blp = Blueprint("market", __name__, url_prefix="/api/market", description="Market-wide data")
 
@@ -16,3 +17,11 @@ class MarketMovers(MethodView):
         if args["scope"] == "portfolio":
             return svc.get_portfolio_movers(limit=limit)
         return svc.get_index_movers(limit=limit)
+
+
+@blp.route("/mood")
+class MarketMood(MethodView):
+    @blp.response(200, MarketMoodSchema)
+    def get(self):
+        """§14.9 Market Mood Score -- our own breadth/momentum/volatility composite."""
+        return mood_service.get_market_mood()

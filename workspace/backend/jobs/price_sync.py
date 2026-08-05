@@ -13,6 +13,7 @@ def start_price_sync_job(app):
     if _scheduler is not None:
         return _scheduler
 
+    from services.benchmark_service import sync_all_benchmarks
     from services.price_service import sync_all_live_assets
 
     interval_minutes = app.config["PRICE_SYNC_INTERVAL_MIN"]
@@ -24,6 +25,15 @@ def start_price_sync_job(app):
                 logger.info("Scheduled price sync completed: %s", result["summary"])
             except Exception:
                 logger.exception("Scheduled price sync failed")
+
+            # Benchmarks ride the same schedule (§14.4) but in their own try block:
+            # they're a comparison line, so a benchmark outage must never mark the
+            # user's actual holdings as unsynced.
+            try:
+                result = sync_all_benchmarks()
+                logger.info("Scheduled benchmark sync completed: %s", result["summary"])
+            except Exception:
+                logger.exception("Scheduled benchmark sync failed")
 
     scheduler = BackgroundScheduler(daemon=True)
     # first_run deliberately deferred by a full interval — an IntervalTrigger with

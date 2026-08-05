@@ -10,3 +10,4 @@ tenacity==9.1.4
 requests==2.34.2
 python-dateutil==2.9.0.post0
 pyxirr==0.10.8
+pytest==9.1.1
