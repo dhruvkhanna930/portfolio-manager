@@ -40,6 +40,9 @@ class AssetMetadata(db.Model):
     transactions = db.relationship("Transaction", back_populates="asset")
     sips = db.relationship("Sip", back_populates="asset")
     watchlist_entries = db.relationship("Watchlist", back_populates="asset")
+    index_memberships = db.relationship(
+        "MarketIndexConstituent", back_populates="asset", cascade="all, delete-orphan"
+    )
 
 
 db.Index("idx_meta_type", AssetMetadata.asset_type)

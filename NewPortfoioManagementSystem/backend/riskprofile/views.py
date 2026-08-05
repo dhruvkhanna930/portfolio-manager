@@ -124,10 +124,11 @@ def risk_profile(request):
 
         missing_fields = [field for field in required_fields if not request.POST.get(field)]
         if missing_fields:
-            return HttpResponse(
-                f'Error: Please complete all questions. Missing: {", ".join(missing_fields)}',
-                status=400
-            )
+            error = f'Please complete all questions. Missing: {", ".join(missing_fields)}'
+            return render(request, 'riskprofile/risk-profile.html', {
+                'risk_profile': risk_profile,
+                'error': error,
+            })
 
         total_score = 0
         answers = {}

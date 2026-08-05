@@ -225,7 +225,7 @@
                             </button>
                             <div class="dropdown-menu dropdown-menu-right">
                                 <!-- item-->
-                                <a class="dropdown-item" href="#"><i class="uil uil-user-circle font-size-18 align-middle text-muted mr-1"></i> <span class="align-middle">View Profile</span></a>
+                                <a class="dropdown-item" href="{% url 'profile' %}"><i class="uil uil-user-circle font-size-18 align-middle text-muted mr-1"></i> <span class="align-middle">View Profile</span></a>
                                 {% comment %} <a class="dropdown-item" href="#"><i class="uil uil-wallet font-size-18 align-middle mr-1 text-muted"></i> <span class="align-middle">My Wallet</span></a> {% endcomment %}
                                 {% comment %} <a class="dropdown-item d-block" href="#"><i class="uil uil-cog font-size-18 align-middle mr-1 text-muted"></i> <span class="align-middle">Settings</span> <span class="badge badge-soft-success badge-pill mt-1 ml-2">03</span></a> {% endcomment %}
                                 {% comment %} <a class="dropdown-item" href="#"><i class="uil uil-lock-alt font-size-18 align-middle mr-1 text-muted"></i> <span class="align-middle">Lock screen</span></a> {% endcomment %}
@@ -328,6 +328,16 @@
                                 <div class="col-md-3 col-sm-6">
                                     <div class="card">
                                         <div class="card-body text-center">
+                                            <i class="uil-wallet font-size-32 text-info mb-2"></i>
+                                            <h6 class="card-title mb-1 text-muted">Wallet Balance</h6>
+                                            <h4 class="mb-0" id="wallet-balance-display">${{ walletBalance|floatformat:2 }}</h4>
+                                            <button type="button" class="btn btn-sm btn-info mt-2" data-toggle="modal" data-target="#walletModal">Add Credit</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
                                             <i class="uil-chart-line font-size-32 text-success mb-2"></i>
                                             <h6 class="card-title mb-1 text-muted">Sectors</h6>
                                             <h4 class="mb-0">{{ sectors.1|length }}</h4>
@@ -340,15 +350,6 @@
                                             <i class="uil-money-withdrawal font-size-32 text-warning mb-2"></i>
                                             <h6 class="card-title mb-1 text-muted">Total Invested</h6>
                                             <h4 class="mb-0">${{ totalInvestment|floatformat:0 }}</h4>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 col-sm-6">
-                                    <div class="card">
-                                        <div class="card-body text-center">
-                                            <i class="uil-target font-size-32 text-danger mb-2"></i>
-                                            <h6 class="card-title mb-1 text-muted">Diversification</h6>
-                                            <h4 class="mb-0">Good</h4>
                                         </div>
                                     </div>
                                 </div>
@@ -1197,25 +1198,172 @@
 
         <!-- Script for submitting the form with AJAX -->
         <script>
-            function addStockHoldingResult(data) {
-                if (data === "Success") {
-                    $('#myModal').modal('toggle');
-                    alert("Stock Holding successfully added to your portfolio");
-                    location.reload();
-                } else {
-                    alert("Error adding the stock holding\n"); // + "Message: " + data);
-                }
-            }
+        </script>
 
-            $("#add-holding-form").submit(function(e) {
-                e.preventDefault(); // avoid to execute the actual submit of the form.
+        <!-- Wallet Credit Management -->
+        <script>
+            // Preset amount buttons
+            $('.preset-amount').click(function(e) {
+                e.preventDefault();
+                var amount = $(this).data('amount');
+                $('#custom-amount').val(amount);
+            });
+
+            $('#wallet-credit-form').submit(function(e) {
+                e.preventDefault();
+                var amount = $('#custom-amount').val().trim();
+
+                if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+                    alert("Please enter a valid amount (greater than 0)");
+                    return false;
+                }
+
                 var form = $(this);
                 var url = form.attr('action');
                 $.ajax({
                     type: "POST",
                     url: url,
                     data: form.serialize(),
-                    success: function(data) { addStockHoldingResult(data) }
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.hasOwnProperty('WalletBalance')) {
+                            $('#wallet-balance-display').text('$' + parseFloat(data['WalletBalance']).toFixed(2));
+                            $('#walletModal').modal('toggle');
+                            $('#custom-amount').val('');
+                            alert("Credit added successfully!");
+                        } else {
+                            alert("Error: " + data['Error']);
+                        }
+                    },
+                    error: function(xhr) {
+                        var errorData = JSON.parse(xhr.responseText);
+                        alert("Error adding credit: " + (errorData['Error'] || 'Unknown error'));
+                    }
+                });
+            });
+        </script>
+
+        <!-- Shopping Cart Management -->
+        <script>
+            var cartItems = [];
+
+            function updateCartDisplay() {
+                var tbody = $('#cart-items-tbody');
+                var emptyMsg = $('#empty-cart-msg');
+                var checkoutBtn = $('#checkout-btn');
+                tbody.empty();
+
+                if (cartItems.length === 0) {
+                    emptyMsg.show();
+                    checkoutBtn.hide();
+                } else {
+                    emptyMsg.hide();
+                    checkoutBtn.show();
+                    var total = 0;
+                    cartItems.forEach(function(item, index) {
+                        var row = `<tr>
+                            <td>${item.symbol}</td>
+                            <td>${item.quantity}</td>
+                            <td>$${parseFloat(item.price).toFixed(2)}</td>
+                            <td>$${parseFloat(item.subtotal).toFixed(2)}</td>
+                            <td><button class="btn btn-sm btn-danger" onclick="removeFromCart(${index})">Remove</button></td>
+                        </tr>`;
+                        tbody.append(row);
+                        total += item.subtotal;
+                    });
+                    $('#cart-total').text('$' + parseFloat(total).toFixed(2));
+                }
+                $('#cart-count').text(cartItems.length);
+            }
+
+            function removeFromCart(index) {
+                $.ajax({
+                    type: "POST",
+                    url: "/cart-remove",
+                    data: {
+                        index: index,
+                        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                    },
+                    dataType: "json",
+                    success: function(data) {
+                        cartItems.splice(index, 1);
+                        updateCartDisplay();
+                    }
+                });
+            }
+
+            function checkoutCart() {
+                $.ajax({
+                    type: "POST",
+                    url: "/cart-checkout",
+                    data: {
+                        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                    },
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.hasOwnProperty('Success') && data['Success']) {
+                            $('#wallet-balance-display').text('$' + parseFloat(data['WalletBalance']).toFixed(2));
+                            cartItems = [];
+                            updateCartDisplay();
+                            $('#cartModal').modal('toggle');
+                            alert("Purchase completed successfully!");
+                            location.reload();
+                        } else {
+                            alert("Error: " + data['Error']);
+                        }
+                    },
+                    error: function(xhr) {
+                        var error = JSON.parse(xhr.responseText);
+                        alert("Checkout error: " + error['Error']);
+                    }
+                });
+            }
+
+            // Handle add-holding-form to add to cart instead of direct purchase
+            $(document).ready(function() {
+                $("#add-holding-form").submit(function(e) {
+                    e.preventDefault();
+                    var form = $(this);
+                    $.ajax({
+                        type: "POST",
+                        url: "/cart-add",
+                        data: form.serialize(),
+                        dataType: "json",
+                        success: function(data) {
+                            if (data.hasOwnProperty('Success') && data['Success']) {
+                                cartItems.push(data['Item']);
+                                updateCartDisplay();
+                                $('#myModal').modal('toggle');
+                                form[0].reset();
+                                getDate();
+                                $('#cartModal').modal('show');
+                                alert("Item added to cart!");
+                            } else {
+                                alert("Error: " + data['Error']);
+                            }
+                        },
+                        error: function(xhr) {
+                            try {
+                                var error = JSON.parse(xhr.responseText);
+                                alert("Error: " + error['Error']);
+                            } catch(e) {
+                                alert("Error adding to cart. Please try again.");
+                            }
+                        }
+                    });
+                });
+            });
+
+            // Load cart on page load
+            $(document).ready(function() {
+                $.ajax({
+                    type: "GET",
+                    url: "/cart-view",
+                    dataType: "json",
+                    success: function(data) {
+                        cartItems = data['Cart'];
+                        updateCartDisplay();
+                    }
                 });
             });
         </script>
@@ -1514,6 +1662,88 @@
                 window.myDoughnut3 = new Chart(ctx3, stockChartConfig);
             };
         </script>
+
+        <!-- Wallet Credit Modal -->
+        <div id="walletModal" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-md">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Add Credit to Wallet</h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="wallet-credit-form" method="post" action="{% url 'wallet-add-credit' %}">
+                            {% csrf_token %}
+                            <div class="form-group row mb-4">
+                                <label class="col-sm-3 col-form-label">Select Amount</label>
+                                <div class="col-sm-9">
+                                    <div class="btn-group mb-3" role="group">
+                                        <button type="button" class="btn btn-outline-primary preset-amount" data-amount="100">$100</button>
+                                        <button type="button" class="btn btn-outline-primary preset-amount" data-amount="500">$500</button>
+                                        <button type="button" class="btn btn-outline-primary preset-amount" data-amount="1000">$1000</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group row mb-4">
+                                <label class="col-sm-3 col-form-label">Custom Amount</label>
+                                <div class="col-sm-9">
+                                    <input name="amount" class="form-control" type="number" value="" min="1" step="0.01" id="custom-amount" placeholder="Enter custom amount">
+                                </div>
+                            </div>
+                            <div class="row mt-4 justify-content-center">
+                                <button type="submit" class="btn btn-primary w-md">Add Credit</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cart Modal -->
+        <div id="cartModal" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Shopping Cart (<span id="cart-count">0</span>)</h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="cart-items-container" class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Stock</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                        <th>Subtotal</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cart-items-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="empty-cart-msg" class="text-center text-muted py-4">
+                            <p>Your cart is empty</p>
+                        </div>
+                        <div class="row mt-3 border-top pt-3">
+                            <div class="col-md-8"></div>
+                            <div class="col-md-4">
+                                <h5>Cart Total: <span id="cart-total">$0.00</span></h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Continue Shopping</button>
+                        <button type="button" class="btn btn-success" id="checkout-btn" onclick="checkoutCart()" style="display:none;">Checkout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </body>
 
 </html>

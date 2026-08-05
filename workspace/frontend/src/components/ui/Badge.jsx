@@ -8,7 +8,7 @@ const TONE_CLASSES = {
   accent: 'bg-accent-soft text-accent',
 }
 
-export default function Badge({ tone = 'neutral', children, className }) {
+export default function Badge({ tone = 'neutral', children, className, ...rest }) {
   return (
     <span
       className={cn(
@@ -16,6 +16,7 @@ export default function Badge({ tone = 'neutral', children, className }) {
         TONE_CLASSES[tone],
         className
       )}
+      {...rest}
     >
       {children}
     </span>

@@ -5,6 +5,7 @@ from django.db.models import JSONField
 class Portfolio(models.Model):
   user = models.OneToOneField(User, on_delete=models.CASCADE)
   total_investment = models.FloatField(default=0)
+  wallet_balance = models.FloatField(default=0)
 
   def update_investment(self):
     investment = 0
@@ -39,3 +40,13 @@ class StockHolding(models.Model):
 
   def __str__(self):
     return str(self.portfolio) + " -> " + self.company_symbol + " " + str(self.number_of_shares)
+
+
+class WalletTransaction(models.Model):
+  portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE)
+  amount = models.FloatField()
+  transaction_type = models.CharField(max_length=20)
+  timestamp = models.DateTimeField(auto_now_add=True)
+
+  def __str__(self):
+    return f"{self.portfolio.user} - {self.transaction_type} {self.amount} at {self.timestamp}"
