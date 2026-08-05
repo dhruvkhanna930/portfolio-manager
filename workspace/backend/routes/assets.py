@@ -1,6 +1,7 @@
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 
+from schemas.visual import PeerRankQuerySchema, PeerRankSchema
 from schemas.asset import (
     AssetBriefSchema,
     AssetDetailSchema,
@@ -85,5 +86,20 @@ class AssetSimilar(MethodView):
     def get(self, asset_id):
         try:
             return svc.get_similar_assets(asset_id)
+        except svc.AssetNotFoundError:
+            abort(404, message=f"Asset {asset_id} not found")
+
+
+@blp.route("/<int:asset_id>/peer-rank")
+class AssetPeerRank(MethodView):
+    @blp.arguments(PeerRankQuerySchema, location="query")
+    @blp.response(200, PeerRankSchema)
+    def get(self, args, asset_id):
+        """Rank by period return against the same-sector assets ALREADY IN THIS
+        APP -- self-selected, not an exchange-wide ranking. The response carries
+        a scope_note saying so, and the UI shows it (§15.4).
+        """
+        try:
+            return svc.get_peer_ranking(asset_id, period=args["period"])
         except svc.AssetNotFoundError:
             abort(404, message=f"Asset {asset_id} not found")

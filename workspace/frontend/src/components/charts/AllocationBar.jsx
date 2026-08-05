@@ -2,6 +2,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import { formatCurrency, formatPercent } from '../../utils/formatters'
 import Skeleton from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
+import { chartTokens } from './chartTheme'
 
 const PALETTE = ['#22D3A6', '#5B8DEF', '#F0B90B', '#A78BFA', '#F6465D', '#2DD4BF', '#FB923C', '#818CF8']
 
@@ -19,6 +20,7 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function AllocationBar({ items = [], loading = false, height = 220 }) {
+  const t = chartTokens()
   if (loading) {
     return (
       <div className="space-y-2" style={{ height }}>
@@ -51,8 +53,8 @@ export default function AllocationBar({ items = [], loading = false, height = 22
             type="category"
             dataKey="label"
             width={110}
-            stroke="#5C6270"
-            tick={{ fontSize: 11, fill: '#9298A5' }}
+            stroke={t.border}
+            tick={{ fontSize: 11, fill: t.textSecondary }}
             tickLine={false}
             axisLine={false}
           />

@@ -22,6 +22,7 @@ from schemas.advanced_analytics import (
     RiskQuerySchema,
     StatisticsSchema,
 )
+from schemas.visual import RiskReturnQuerySchema, RiskReturnSchema
 from services import (
     benchmark_service,
     health_service,
@@ -133,3 +134,15 @@ class RebalancePreview(MethodView):
             )
         except InvalidWeightsError as e:
             abort(422, message=str(e))
+
+
+@blp.route("/risk-return")
+class RiskReturnScatter(MethodView):
+    @blp.arguments(RiskReturnQuerySchema, location="query")
+    @blp.response(200, RiskReturnSchema)
+    def get(self, args):
+        """Per-holding volatility, return and position size in one pass, for
+        §15.2's bubble scatter. Convenience shape over metrics §14.1 already
+        defines -- no new statistics.
+        """
+        return risk_service.get_risk_return_scatter(period=args["period"])

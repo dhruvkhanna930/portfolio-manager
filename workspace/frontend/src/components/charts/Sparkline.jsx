@@ -1,6 +1,7 @@
 import { Line, LineChart, ResponsiveContainer } from 'recharts'
 import { usePriceHistory } from '../../hooks/usePrices'
 import Skeleton from '../ui/Skeleton'
+import { chartTokens } from './chartTheme'
 
 // A condensed, axis-free trend line for a single asset -- reuses the same
 // price_history cache the Asset Detail candlestick chart reads from (§4.2),
@@ -23,7 +24,8 @@ export default function Sparkline({ assetId, width = 96, height = 32 }) {
 
   const first = points[0].value
   const last = points[points.length - 1].value
-  const color = last >= first ? '#16C784' : '#F6465D'
+  const t = chartTokens()
+  const color = last >= first ? t.positive : t.negative
 
   return (
     <div style={{ width, height }}>

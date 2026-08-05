@@ -512,6 +512,73 @@ def refresh_all_holding_metrics(period="1Y"):
 # --------------------------------------------------------------------------
 
 
+def get_risk_return_scatter(period="1Y"):
+    """Per-holding risk vs. return, plus position size (§15.2's BubbleScatter).
+
+    Exists as one endpoint rather than letting the browser loop over
+    /analytics/risk per holding: that would be one request and one full metric
+    computation per asset, for three numbers each. Nothing new is calculated
+    here -- it's the same annualized volatility and return already defined
+    above, gathered in a single pass.
+    """
+    if period not in VALID_PERIODS:
+        raise ValueError(f"invalid risk period: {period}")
+
+    start = _period_start(period)
+    points, excluded = [], []
+    total_value = Decimal("0")
+
+    holdings = Holding.query.all()
+    values = {}
+    for holding in holdings:
+        snapshot = holding.asset.price_snapshot
+        if snapshot is None or snapshot.price is None:
+            continue
+        value = Decimal(holding.quantity) * Decimal(snapshot.price)
+        values[holding.asset_id] = value
+        total_value += value
+
+    for holding in holdings:
+        asset = holding.asset
+        prices = get_asset_price_series(holding.asset_id, start_date=start)
+        rets = to_daily_returns(prices)
+        if len(rets) < MIN_OBSERVATIONS:
+            excluded.append(
+                {
+                    "asset_id": holding.asset_id,
+                    "symbol": asset.symbol,
+                    "reason": f"only {len(rets)} daily observations in this period",
+                }
+            )
+            continue
+        ordered = [rets[d] for d in sorted(rets)]
+        value = values.get(holding.asset_id)
+        points.append(
+            {
+                "asset_id": holding.asset_id,
+                "symbol": asset.symbol,
+                "name": asset.name,
+                "asset_type": asset.asset_type,
+                "volatility": annualized_volatility(ordered),
+                "annualized_return": annualized_return(ordered),
+                "current_value": value,
+                "weight_pct": (value / total_value * 100) if value and total_value > 0 else None,
+                "observations": len(ordered),
+            }
+        )
+
+    points.sort(key=lambda p: p["current_value"] or Decimal("0"), reverse=True)
+    return {
+        "period": period,
+        "points": points,
+        "excluded": excluded,
+        "note": (
+            "Annualized volatility and return from daily closes over the selected period. "
+            "Bubble size is the position's current value, not a risk measure."
+        ),
+    }
+
+
 def get_correlation_matrix(period="1Y"):
     """Pairwise Pearson correlation of daily returns across current holdings.
     Computed on the fly, never stored (§14.2).

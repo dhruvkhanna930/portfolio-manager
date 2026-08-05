@@ -1,4 +1,5 @@
-import { Card, KpiCard } from '../components/ui'
+import { Card } from '../components/ui'
+import PortfolioHero from '../components/home/PortfolioHero'
 import MoversCard from '../components/home/MoversCard'
 import CondensedHoldingsTable from '../components/home/CondensedHoldingsTable'
 import AllocationBar from '../components/charts/AllocationBar'
@@ -31,23 +32,14 @@ export default function Home() {
         <p className="mt-1 text-text-secondary">Your portfolio at a glance, plus what the market's doing.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiCard label="Total Value" value={totalCurrent} format="currency" loading={summaryLoading} />
-        <KpiCard
-          label="Total P/L"
-          value={unrealisedPl}
-          changePct={summary ? Number(summary.total_pl_pct) : 0}
-          format="currency"
-          loading={summaryLoading}
-        />
-        <KpiCard
-          label="Today's P/L"
-          value={dayPl}
-          changePct={dayPlPct}
-          format="currency"
-          loading={summaryLoading}
-        />
-      </div>
+      <PortfolioHero
+        totalValue={totalCurrent}
+        dayPl={dayPl}
+        dayPlPct={dayPlPct}
+        totalPl={unrealisedPl}
+        totalPlPct={summary ? Number(summary.total_pl_pct) : 0}
+        loading={summaryLoading}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoversCard

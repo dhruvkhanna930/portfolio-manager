@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Play } from 'lucide-react'
 
 import { Button, Input, Select } from '../ui'
+import MonteCarloFanChart from '../charts/MonteCarloFanChart'
 import { useMonteCarlo } from '../../hooks/useAdvancedAnalytics'
 import { formatCurrency } from '../../utils/formatters'
 
@@ -91,14 +92,17 @@ export default function MonteCarloPanel() {
             </div>
           </div>
 
+          <MonteCarloFanChart series={result.bands} />
+
           <p className="text-sm text-text-secondary">
             In {Number(result.probability_of_loss_pct).toFixed(1)}% of {result.n_simulations}{' '}
-            simulations the portfolio ended below its current value.
+            simulations the portfolio ended below its current value. The shaded band spans the 10th
+            to 90th percentile — four in five simulated paths finished inside it.
           </p>
 
           <details className="rounded border border-border bg-bg p-3">
             <summary className="cursor-pointer text-sm text-text-secondary">
-              Show projected range over time
+              Show projected range as a table
             </summary>
             <div className="mt-3 max-h-64 overflow-y-auto">
               <table className="w-full text-xs">

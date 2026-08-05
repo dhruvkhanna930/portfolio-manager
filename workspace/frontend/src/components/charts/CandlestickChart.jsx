@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { AreaSeries, CandlestickSeries, createChart } from 'lightweight-charts'
 import Skeleton from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
+import { chartTokens } from './chartTheme'
 
 function toTime(t) {
   // Cached daily rows arrive as plain 'YYYY-MM-DD' -- lightweight-charts takes
@@ -47,16 +48,20 @@ export default function CandlestickChart({ points = [], loading = false, height 
   useEffect(() => {
     if (!containerRef.current || seriesData.length === 0) return undefined
 
+    // lightweight-charts is imperative and reads its colours once at creation,
+    // so tokens are resolved here rather than at render.
+    const t = chartTokens()
+
     const chart = createChart(containerRef.current, {
       height,
-      layout: { background: { color: 'transparent' }, textColor: '#9298A5' },
+      layout: { background: { color: 'transparent' }, textColor: t.textSecondary },
       grid: {
-        vertLines: { color: '#1A1D24' },
-        horzLines: { color: '#1A1D24' },
+        vertLines: { color: t.surfaceHover },
+        horzLines: { color: t.surfaceHover },
       },
-      rightPriceScale: { borderColor: '#22252C' },
+      rightPriceScale: { borderColor: t.border },
       timeScale: {
-        borderColor: '#22252C',
+        borderColor: t.border,
         timeVisible: usesTimestamp,
         secondsVisible: false,
       },
@@ -66,16 +71,16 @@ export default function CandlestickChart({ points = [], loading = false, height 
 
     const series = hasOhlc
       ? chart.addSeries(CandlestickSeries, {
-          upColor: '#16C784',
-          downColor: '#F6465D',
+          upColor: t.positive,
+          downColor: t.negative,
           borderVisible: false,
-          wickUpColor: '#16C784',
-          wickDownColor: '#F6465D',
+          wickUpColor: t.positive,
+          wickDownColor: t.negative,
         })
       : chart.addSeries(AreaSeries, {
-          lineColor: '#22D3A6',
-          topColor: 'rgba(34, 211, 166, 0.28)',
-          bottomColor: 'rgba(34, 211, 166, 0)',
+          lineColor: t.accent,
+          topColor: `color-mix(in srgb, ${t.accent} 28%, transparent)`,
+          bottomColor: `color-mix(in srgb, ${t.accent} 0%, transparent)`,
           lineWidth: 2,
         })
 

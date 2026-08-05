@@ -76,6 +76,25 @@ class AssetDetailSchema(Schema):
     week52_high = fields.Number(allow_none=True)
     week52_low = fields.Number(allow_none=True)
     description = fields.String(allow_none=True)
+    # §15.4 -- the rest of yfinance's own .info fields. Nullable throughout:
+    # .info omits plenty per ticker, and a missing field is hidden by the UI
+    # rather than defaulted.
+    forward_pe = fields.Number(allow_none=True)
+    price_to_book = fields.Number(allow_none=True)
+    book_value = fields.Number(allow_none=True)
+    dividend_yield = fields.Number(allow_none=True)
+    beta = fields.Number(allow_none=True)
+    eps = fields.Number(allow_none=True)
+    profit_margin = fields.Number(allow_none=True)
+    return_on_equity = fields.Number(allow_none=True)
+    debt_to_equity = fields.Number(allow_none=True)
+    revenue = fields.Number(allow_none=True)
+    employees = fields.Number(allow_none=True)
+    website = fields.String(allow_none=True)
+    day_high = fields.Number(allow_none=True)
+    day_low = fields.Number(allow_none=True)
+    volume = fields.Number(allow_none=True)
+    avg_volume = fields.Number(allow_none=True)
 
     # MUTUAL_FUND
     fund_house = fields.String(allow_none=True)

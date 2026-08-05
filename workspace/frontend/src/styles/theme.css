@@ -16,3 +16,24 @@
   --warning: #F0B90B;
   --radius: 12px;
 }
+
+/* Report/document theme (§15.6).
+   The PDF report is a document, not app chrome, so it renders on paper-white
+   both on screen and in print. This overrides the tokens at :root rather than
+   scoping to a container on purpose: every chart resolves its colours through
+   getComputedStyle(document.documentElement), so flipping here is what makes
+   axis labels and series colours legible on white. Set by pages/Report.jsx. */
+:root[data-theme='report'] {
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-hover: #F4F5F7;
+  --border: #D9DDE3;
+  --text-primary: #10131A;
+  --text-secondary: #454C59;
+  --text-muted: #666D7A;
+  --accent: #0E9E7A;
+  --accent-hover: #0B8768;
+  --positive: #0F8A5F;
+  --negative: #C4304A;
+  --warning: #9A7400;
+}

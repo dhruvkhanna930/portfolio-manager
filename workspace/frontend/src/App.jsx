@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import Styleguide from './pages/Styleguide'
@@ -10,10 +11,26 @@ import AssetDetail from './pages/AssetDetail'
 import Sips from './pages/Sips'
 import News from './pages/News'
 import Analytics from './pages/Analytics'
+import Goals from './pages/Goals'
+
+
+// The report is a separate destination, not part of normal navigation -- keep
+// it out of the main bundle.
+const Report = lazy(() => import('./pages/Report'))
 
 function App() {
   return (
     <Routes>
+      {/* Outside AppLayout on purpose -- the report is a document, so it
+          carries no navbar or page chrome (§15.6). */}
+      <Route
+        path="/report"
+        element={
+          <Suspense fallback={null}>
+            <Report />
+          </Suspense>
+        }
+      />
       <Route element={<AppLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/portfolio" element={<Portfolio />} />
@@ -50,6 +67,7 @@ function App() {
         <Route path="/sips" element={<Sips />} />
         <Route path="/news" element={<News />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/goals" element={<Goals />} />
         <Route path="/styleguide" element={<Styleguide />} />
       </Route>
     </Routes>
