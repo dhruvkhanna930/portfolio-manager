@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Button, DataTable, EmptyState } from '../ui'
 import { formatCurrency, formatNumber, formatPercent } from '../../utils/formatters'
+import TagEditor from './TagEditor'
 
 export function toHoldingRows(holdings) {
   return holdings.map((h) => ({
@@ -21,6 +22,7 @@ export default function HoldingsTable({
   rows,
   loading,
   showType = true,
+  showTags = true,
   onSell,
   onSellAll,
   emptyTitle = 'No holdings yet',
@@ -90,6 +92,15 @@ export default function HoldingsTable({
           ? '—'
           : `${row.day_change_value >= 0 ? '+' : ''}${formatCurrency(row.day_change_value)}`,
     },
+    ...(showTags
+      ? [
+          {
+            key: 'tags',
+            label: 'Tags',
+            render: (row) => <TagEditor holdingId={row.holding_id} tags={row.tags ?? []} />,
+          },
+        ]
+      : []),
     {
       key: 'actions',
       label: '',

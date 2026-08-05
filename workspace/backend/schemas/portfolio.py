@@ -1,6 +1,7 @@
 from marshmallow import Schema, fields, validate
 
 from .asset import AssetBriefSchema
+from .tag import TagSchema
 
 
 class HoldingSchema(Schema):
@@ -15,6 +16,7 @@ class HoldingSchema(Schema):
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
     asset = fields.Nested(AssetBriefSchema, dump_only=True)
+    tags = fields.Nested(TagSchema, many=True, dump_only=True)
 
 
 class HoldingWithMetricsSchema(HoldingSchema):

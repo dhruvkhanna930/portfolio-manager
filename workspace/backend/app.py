@@ -28,7 +28,9 @@ def create_app(config_class=Config):
     from routes.health import blp as health_blp
     from routes.portfolio import blp as portfolio_blp
     from routes.prices import blp as prices_blp
+    from routes.search import blp as search_blp
     from routes.sips import blp as sips_blp
+    from routes.tags import blp as tags_blp
     from routes.transactions import blp as transactions_blp
     from routes.wallet import blp as wallet_blp
     from routes.watchlist import blp as watchlist_blp
@@ -42,6 +44,8 @@ def create_app(config_class=Config):
     api.register_blueprint(sips_blp)
     api.register_blueprint(watchlist_blp)
     api.register_blueprint(calculators_blp)
+    api.register_blueprint(search_blp)
+    api.register_blueprint(tags_blp)
 
     if not app.config.get("TESTING") and (not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         from jobs.price_sync import start_price_sync_job

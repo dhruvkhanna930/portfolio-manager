@@ -25,6 +25,29 @@ def list_assets():
     return AssetMetadata.query.order_by(AssetMetadata.name).all()
 
 
+def search_own_assets(q, limit=10):
+    """Search *our own* asset_metadata (symbol, name, isin) -- distinct from
+    /assets/search/live (§7), which hits yfinance/mfapi.in's live universe. This
+    is what the Navbar's global search box uses: instant, no external call, only
+    matches assets already resolved into the DB.
+    """
+    from sqlalchemy import or_
+
+    pattern = f"%{q}%"
+    return (
+        AssetMetadata.query.filter(
+            or_(
+                AssetMetadata.symbol.ilike(pattern),
+                AssetMetadata.name.ilike(pattern),
+                AssetMetadata.isin.ilike(pattern),
+            )
+        )
+        .order_by(AssetMetadata.name)
+        .limit(limit)
+        .all()
+    )
+
+
 def sector_label(asset):
     """Sector-ish bucket label for an asset -- single source of truth shared by
     the allocation-by-sector aggregation and the asset serializer, so a table

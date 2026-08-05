@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
-import { Search, Wallet } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { cn } from '../../utils/cn'
-import Input from '../ui/Input'
+import NavbarSearch from './NavbarSearch'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
@@ -10,6 +10,7 @@ const NAV_LINKS = [
   { to: '/stocks', label: 'Stocks' },
   { to: '/mutual-funds', label: 'Mutual Funds' },
   { to: '/bonds', label: 'Bonds' },
+  { to: '/sips', label: 'SIPs' },
   { to: '/calculators', label: 'Calculators' },
 ]
 
@@ -42,13 +43,8 @@ export default function Navbar() {
           ))}
         </nav>
 
-        <div className="ml-auto w-64">
-          <Input
-            type="search"
-            icon={Search}
-            placeholder="Search stocks, funds, bonds..."
-            className="h-9"
-          />
+        <div className="ml-auto">
+          <NavbarSearch />
         </div>
       </div>
     </header>

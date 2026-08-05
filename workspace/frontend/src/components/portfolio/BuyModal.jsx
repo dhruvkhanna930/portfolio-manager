@@ -21,10 +21,19 @@ const FREQUENCIES = [
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export default function BuyModal({ open, onClose, walletBalance, onBuy, onCreateSip, submitting }) {
-  const [assetType, setAssetType] = useState('STOCK')
+export default function BuyModal({
+  open,
+  onClose,
+  walletBalance,
+  onBuy,
+  onCreateSip,
+  submitting,
+  initialAssetType = 'STOCK',
+  initialMode = 'LUMPSUM',
+}) {
+  const [assetType, setAssetType] = useState(initialAssetType)
   const [selected, setSelected] = useState(null)
-  const [mode, setMode] = useState('LUMPSUM')
+  const [mode, setMode] = useState(initialMode)
   const [resolveError, setResolveError] = useState(null)
 
   const [quantity, setQuantity] = useState('')
@@ -40,9 +49,9 @@ export default function BuyModal({ open, onClose, walletBalance, onBuy, onCreate
 
   useEffect(() => {
     if (!open) {
-      setAssetType('STOCK')
+      setAssetType(initialAssetType)
       setSelected(null)
-      setMode('LUMPSUM')
+      setMode(initialMode)
       setResolveError(null)
       setQuantity('')
       setPrice('')
@@ -62,7 +71,7 @@ export default function BuyModal({ open, onClose, walletBalance, onBuy, onCreate
       {
         onSuccess: (resolved) => {
           setSelected(resolved)
-          setMode(resolved.asset_type === 'MUTUAL_FUND' ? 'LUMPSUM' : 'LUMPSUM')
+          setMode(resolved.asset_type === 'MUTUAL_FUND' ? initialMode : 'LUMPSUM')
         },
         onError: (error) => setResolveError(getApiErrorMessage(error, 'Could not add this asset')),
       }
