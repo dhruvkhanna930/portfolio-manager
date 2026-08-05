@@ -1,7 +1,13 @@
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 
-from schemas.price import ManualPriceUpdateSchema, PriceSnapshotSchema, SyncResponseSchema
+from schemas.price import (
+    ManualPriceUpdateSchema,
+    PriceHistoryQuerySchema,
+    PriceHistoryResponseSchema,
+    PriceSnapshotSchema,
+    SyncResponseSchema,
+)
 from services import price_service as svc
 from services.price_service import AssetNotFoundError, PriceNotFoundError
 
@@ -25,6 +31,17 @@ class PriceDetail(MethodView):
             abort(404, message=f"Asset {asset_id} not found")
         except PriceNotFoundError:
             abort(404, message=f"No price data for asset {asset_id} yet")
+
+
+@blp.route("/<int:asset_id>/history")
+class PriceHistoryDetail(MethodView):
+    @blp.arguments(PriceHistoryQuerySchema, location="query")
+    @blp.response(200, PriceHistoryResponseSchema)
+    def get(self, args, asset_id):
+        try:
+            return svc.get_price_history(asset_id, period=args["period"])
+        except AssetNotFoundError:
+            abort(404, message=f"Asset {asset_id} not found")
 
 
 @blp.route("/<int:asset_id>/manual")

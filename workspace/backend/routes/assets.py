@@ -3,10 +3,12 @@ from flask_smorest import Blueprint, abort
 
 from schemas.asset import (
     AssetBriefSchema,
+    AssetDetailSchema,
     AssetResolveResponseSchema,
     AssetResolveSchema,
     LiveSearchQuerySchema,
     LiveSearchResultSchema,
+    SimilarAssetSchema,
 )
 from services import asset_search_service, asset_service as svc
 
@@ -65,3 +67,23 @@ class AssetResolve(MethodView):
             "created": created,
             "history_rows_added": history_rows,
         }
+
+
+@blp.route("/<int:asset_id>")
+class AssetDetail(MethodView):
+    @blp.response(200, AssetDetailSchema)
+    def get(self, asset_id):
+        try:
+            return svc.get_asset_detail(asset_id)
+        except svc.AssetNotFoundError:
+            abort(404, message=f"Asset {asset_id} not found")
+
+
+@blp.route("/<int:asset_id>/similar")
+class AssetSimilar(MethodView):
+    @blp.response(200, SimilarAssetSchema(many=True))
+    def get(self, asset_id):
+        try:
+            return svc.get_similar_assets(asset_id)
+        except svc.AssetNotFoundError:
+            abort(404, message=f"Asset {asset_id} not found")

@@ -35,3 +35,27 @@ class SyncSummarySchema(Schema):
 class SyncResponseSchema(Schema):
     summary = fields.Nested(SyncSummarySchema)
     results = fields.List(fields.Nested(SyncResultSchema))
+
+
+# 1D is a live yfinance intraday call (stocks only); everything else reads the
+# price_history cache. See services.price_service.get_price_history / §4.2.
+PRICE_HISTORY_PERIODS = ["1D", "1W", "1M", "6M", "1Y", "3Y", "5Y", "ALL"]
+
+
+class PriceHistoryQuerySchema(Schema):
+    period = fields.String(load_default="1M", validate=validate.OneOf(PRICE_HISTORY_PERIODS))
+
+
+class PriceHistoryPointSchema(Schema):
+    t = fields.String()
+    open = fields.Decimal(as_string=True, allow_none=True)
+    high = fields.Decimal(as_string=True, allow_none=True)
+    low = fields.Decimal(as_string=True, allow_none=True)
+    close = fields.Decimal(as_string=True, allow_none=True)
+    label = fields.String(allow_none=True, load_default=None)
+
+
+class PriceHistoryResponseSchema(Schema):
+    asset_id = fields.Integer()
+    period = fields.String()
+    points = fields.List(fields.Nested(PriceHistoryPointSchema))

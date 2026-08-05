@@ -40,3 +40,66 @@ class AssetResolveResponseSchema(Schema):
     currency = fields.String()
     created = fields.Boolean()
     history_rows_added = fields.Integer()
+
+
+class AssetDetailSchema(Schema):
+    """Which fields are populated depends on asset_type (§4) -- the rest come
+    back as null. Frontend renders only the subset relevant to what it got.
+    """
+
+    asset_id = fields.Integer()
+    symbol = fields.String()
+    name = fields.String()
+    asset_type = fields.String()
+    currency = fields.String()
+    logo_url = fields.String(allow_none=True)
+    last_synced_at = fields.DateTime(allow_none=True)
+
+    current_price = fields.Decimal(as_string=True, allow_none=True)
+    prev_close = fields.Decimal(as_string=True, allow_none=True)
+    day_change = fields.Decimal(as_string=True, allow_none=True)
+    day_change_pct = fields.Decimal(as_string=True, allow_none=True)
+    is_stale = fields.Boolean(allow_none=True)
+    as_of = fields.DateTime(allow_none=True)
+
+    # STOCK
+    exchange = fields.String(allow_none=True)
+    sector = fields.String(allow_none=True)
+    industry = fields.String(allow_none=True)
+    country = fields.String(allow_none=True)
+    market_cap = fields.Number(allow_none=True)
+    pe_ratio = fields.Number(allow_none=True)
+    week52_high = fields.Number(allow_none=True)
+    week52_low = fields.Number(allow_none=True)
+    description = fields.String(allow_none=True)
+
+    # MUTUAL_FUND
+    fund_house = fields.String(allow_none=True)
+    category = fields.String(allow_none=True)
+    sub_category = fields.String(allow_none=True)
+    plan_type = fields.String(allow_none=True)
+    option_type = fields.String(allow_none=True)
+    expense_ratio = fields.Decimal(as_string=True, allow_none=True)
+    aum = fields.Decimal(as_string=True, allow_none=True)
+    risk_level = fields.String(allow_none=True)
+    benchmark = fields.String(allow_none=True)
+
+    # BOND
+    issuer = fields.String(allow_none=True)
+    coupon_rate = fields.Decimal(as_string=True, allow_none=True)
+    face_value = fields.Decimal(as_string=True, allow_none=True)
+    maturity_date = fields.Date(allow_none=True)
+    credit_rating = fields.String(allow_none=True)
+    payment_frequency = fields.String(allow_none=True)
+    current_yield = fields.Decimal(as_string=True, allow_none=True)
+
+    is_held = fields.Boolean()
+    is_watchlisted = fields.Boolean()
+
+
+class SimilarAssetSchema(Schema):
+    asset_id = fields.Integer()
+    symbol = fields.String()
+    name = fields.String()
+    asset_type = fields.String()
+    currency = fields.String()
