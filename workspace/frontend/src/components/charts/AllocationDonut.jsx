@@ -60,12 +60,14 @@ export default function AllocationDonut({ items = [], loading = false }) {
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <ul className="flex-1 space-y-2">
+      <ul className="min-w-0 flex-1 space-y-2">
         {data.map((item) => (
           <li key={item.label} className="flex items-center justify-between gap-3 text-sm">
-            <span className="flex items-center gap-2 text-text-secondary">
+            <span className="flex min-w-0 items-center gap-2 text-text-secondary">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-              {item.label}
+              <span className="truncate" title={item.label}>
+                {item.label}
+              </span>
             </span>
             <span className="shrink-0 tabular-nums text-text-primary">
               {formatPercent(item.pct, { showSign: false })}

@@ -15,8 +15,9 @@ class NewsFeed(MethodView):
         """Get news: no asset_id = general market, asset_id = asset-filtered news."""
         asset_id = args.get("asset_id")
         limit = args.get("limit", 20)
+        refresh = args.get("refresh", False)
 
         if asset_id:
-            return svc.fetch_asset_news(asset_id, limit=limit)
+            return svc.fetch_asset_news(asset_id, limit=limit, force_refresh=refresh)
         else:
-            return svc.fetch_general_news(limit=limit)
+            return svc.fetch_general_news(limit=limit, force_refresh=refresh)

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Bookmark, BookmarkCheck, Landmark, LineChart, PiggyBank } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Landmark, LineChart, PiggyBank, RefreshCw } from 'lucide-react'
 import { Badge, Button, Card, Skeleton, Tabs, showToast } from '../components/ui'
 import CandlestickChart from '../components/charts/CandlestickChart'
 import NewsList from '../components/news/NewsList'
 import { useAssetDetail, useSimilarAssets } from '../hooks/useAssets'
-import { useAssetNews } from '../hooks/useNews'
+import { useAssetNews, useRefreshAssetNews } from '../hooks/useNews'
 import { usePriceHistory } from '../hooks/usePrices'
 import { useToggleWatchlist } from '../hooks/useWatchlist'
 import { formatCurrency, formatDate } from '../utils/formatters'
@@ -41,6 +41,7 @@ export default function AssetDetail() {
   const { data: history, isLoading: historyLoading } = usePriceHistory(assetId, period)
   const { data: similar = [] } = useSimilarAssets(assetId)
   const { data: news = [], isLoading: newsLoading, error: newsError } = useAssetNews(assetId, 10)
+  const refreshNews = useRefreshAssetNews(assetId, 10)
   const watchlist = useToggleWatchlist(assetId)
 
   if (isLoading || !asset) {
@@ -64,6 +65,13 @@ export default function AssetDetail() {
       onSuccess: () =>
         showToast.success(asset.is_watchlisted ? 'Removed from watchlist' : 'Added to watchlist'),
       onError: (error) => showToast.error(getApiErrorMessage(error, 'Could not update watchlist')),
+    })
+  }
+
+  const handleRefreshNews = () => {
+    refreshNews.mutate(undefined, {
+      onSuccess: (data) => showToast.success(`Refreshed — ${data.length} headlines`),
+      onError: (error) => showToast.error(getApiErrorMessage(error, 'Could not refresh news')),
     })
   }
 
@@ -241,9 +249,15 @@ export default function AssetDetail() {
       </Card>
 
       <div>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">
-          News
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-text-secondary">
+            News
+          </h2>
+          <Button size="sm" variant="ghost" onClick={handleRefreshNews} disabled={refreshNews.isPending}>
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshNews.isPending ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
         <NewsList
           news={news}
           loading={newsLoading}

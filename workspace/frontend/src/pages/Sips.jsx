@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Info, Plus } from 'lucide-react'
 import { Button, EmptyState, Skeleton, showToast } from '../components/ui'
 import BuyModal from '../components/portfolio/BuyModal'
 import SipCard from '../components/sips/SipCard'
@@ -39,6 +39,17 @@ export default function Sips() {
           <Plus className="h-4 w-4" />
           New SIP
         </Button>
+      </div>
+
+      <div className="mb-6 flex items-start gap-2.5 rounded border border-border bg-surface px-4 py-3 text-sm text-text-secondary">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+        <p>
+          A SIP here is a <span className="text-text-primary">planning tool</span>, not a real
+          investment — creating one doesn't touch your wallet or holdings, so you won't see it on
+          the Portfolio, Stocks, or Mutual Funds pages. To actually own the fund, use{' '}
+          <span className="text-text-primary">Buy → Lumpsum</span> instead (or record each
+          instalment yourself as it happens).
+        </p>
       </div>
 
       {isLoading ? (
