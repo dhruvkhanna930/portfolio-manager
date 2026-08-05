@@ -1,7 +1,5 @@
 import csv
 import json
-import os
-import random
 import requests
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -19,16 +17,7 @@ from alpha_vantage.fundamentaldata import FundamentalData
 import subprocess as sp
 
 def get_alphavantage_key():
-  alphavantage_keys = [
-    settings.ALPHAVANTAGE_KEY1,
-    settings.ALPHAVANTAGE_KEY2,
-    settings.ALPHAVANTAGE_KEY3,
-    settings.ALPHAVANTAGE_KEY4,
-    settings.ALPHAVANTAGE_KEY5,
-    settings.ALPHAVANTAGE_KEY6,
-    settings.ALPHAVANTAGE_KEY7,
-  ]
-  return random.choice(alphavantage_keys)
+  return settings.ALPHAVANTAGE_KEY
 
 @login_required
 def dashboard(request):
