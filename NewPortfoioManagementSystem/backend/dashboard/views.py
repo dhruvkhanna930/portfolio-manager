@@ -79,7 +79,7 @@ def dashboard(request):
 
     return render(request, 'dashboard/dashboard.html', context)
   else:
-    return redirect(risk_profile)
+    return redirect('risk-profile')
 
 
 def get_portfolio_insights(request):
@@ -168,6 +168,14 @@ def portfolio_summary(request):
     risk_profile_category=risk_profile.category if risk_profile else "Balanced"
   )
   return JsonResponse(summary)
+
+
+@login_required
+def profile(request):
+  risk_profile = RiskProfile.objects.filter(user=request.user).first()
+  return render(request, 'dashboard/profile.html', {
+    'risk_profile': risk_profile,
+  })
 
 
 def add_holding(request):
