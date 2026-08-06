@@ -124,3 +124,27 @@ export async function deletePriceTarget(targetId) {
   await apiClient.delete(`/price-targets/${targetId}`)
   return targetId
 }
+
+// --- Phase 16: recommendation model ---
+
+export async function fetchRecommendations({
+  mode = 'similar',
+  riskProfile = 'balanced',
+  limit = 8,
+  useMl = true,
+} = {}) {
+  const { data } = await apiClient.get('/recommendations', {
+    params: { mode, risk_profile: riskProfile, limit, use_ml: useMl },
+  })
+  return data
+}
+
+export async function fetchRecommendationModelStatus() {
+  const { data } = await apiClient.get('/recommendations/model')
+  return data
+}
+
+export async function fetchAssetForecast(assetId) {
+  const { data } = await apiClient.get(`/recommendations/forecast/${assetId}`)
+  return data
+}

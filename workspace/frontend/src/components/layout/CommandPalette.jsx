@@ -23,6 +23,7 @@ import {
   Receipt,
   Repeat,
   Search,
+  Sparkles,
   Target,
   Wallet,
 } from 'lucide-react'
@@ -34,6 +35,7 @@ const PAGES = [
   { id: 'portfolio', label: 'My Portfolio', to: '/portfolio', icon: Wallet },
   { id: 'transactions', label: 'Transactions', to: '/transactions', icon: Receipt },
   { id: 'analytics', label: 'Advanced Analytics', to: '/analytics', icon: BarChart3 },
+  { id: 'recommendations', label: 'Recommendation Model', to: '/recommendations', icon: Sparkles },
   // Goals is no longer a top-level nav item (it lives in Analytics → Projections),
   // so the palette is the main way to reach the full-page version.
   { id: 'goals', label: 'Goals', to: '/goals', icon: Target },

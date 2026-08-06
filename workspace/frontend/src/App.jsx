@@ -12,6 +12,7 @@ import Sips from './pages/Sips'
 import News from './pages/News'
 import Analytics from './pages/Analytics'
 import Goals from './pages/Goals'
+import Recommendations from './pages/Recommendations'
 
 
 // The report is a separate destination, not part of normal navigation -- keep
@@ -68,6 +69,7 @@ function App() {
         <Route path="/news" element={<News />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/goals" element={<Goals />} />
+        <Route path="/recommendations" element={<Recommendations />} />
         <Route path="/styleguide" element={<Styleguide />} />
       </Route>
     </Routes>
