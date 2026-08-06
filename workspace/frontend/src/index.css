@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import './styles/theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .bg-positive-soft {
+    background-color: color-mix(in srgb, var(--positive) 16%, transparent);
+  }
+  .bg-negative-soft {
+    background-color: color-mix(in srgb, var(--negative) 16%, transparent);
+  }
+  .bg-warning-soft {
+    background-color: color-mix(in srgb, var(--warning) 16%, transparent);
+  }
+  .bg-accent-soft {
+    background-color: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* §15.6 print rules. The report already renders on the paper-white token set,
+   so printing mostly means removing chrome and controlling page breaks. */
+@media print {
+  @page {
+    margin: 14mm;
+    size: A4;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Keep a section and its heading together; never split a table row. */
+  .print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  tr,
+  img,
+  svg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  /* Ask for backgrounds so gain/loss pills keep their meaning on paper; the
+     report degrades to readable text if the user declines. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}

@@ -1,0 +1,83 @@
+.holdings-table-container {
+  padding: 1rem 0;
+}
+
+.table-title {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.holdings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.holdings-table thead {
+  background-color: var(--light-bg);
+}
+
+.holdings-table th {
+  padding: 1rem;
+  text-align: left;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.holdings-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.holdings-table tbody tr {
+  transition: background-color 0.3s ease;
+}
+
+.holdings-table tbody tr:hover {
+  background-color: var(--light-bg);
+}
+
+.holdings-table td.symbol {
+  font-weight: 600;
+  color: var(--primary-color);
+  font-size: 1.05rem;
+}
+
+.holdings-table td.name {
+  color: var(--text-secondary);
+}
+
+.holdings-table td.price,
+.holdings-table td.value {
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+.holdings-table td.change {
+  font-weight: 600;
+}
+
+.change.positive {
+  color: var(--secondary-color);
+}
+
+.change.negative {
+  color: var(--danger-color);
+}
+
+@media (max-width: 768px) {
+  .holdings-table {
+    font-size: 0.9rem;
+  }
+
+  .holdings-table th,
+  .holdings-table td {
+    padding: 0.75rem;
+  }
+}

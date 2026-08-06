@@ -697,12 +697,12 @@
                             <div class="row">
                                 <div class="col-12">
                                     <div class="page-title-box d-flex align-items-center justify-content-between">
-                                        <h4 class="mb-0">Dashboard</h4>
+                                        <h4 class="mb-0">Personalized Recommendations</h4>
 
                                         <div class="page-title-right">
                                             <ol class="breadcrumb m-0">
-                                                <li class="breadcrumb-item"><a href="javascript: void(0);">Minible</a></li>
-                                                <li class="breadcrumb-item">Dashboard</li>
+                                                <li class="breadcrumb-item"><a href="javascript: void(0);">Dashboard</a></li>
+                                                <li class="breadcrumb-item">Portfolio</li>
                                                 <li class="breadcrumb-item active">Recommendations</li>
                                             </ol>
                                         </div>
@@ -712,210 +712,15 @@
                             </div>
                             <!-- end page title -->
 
-                            <div class="row">
-                                <div class="col-lg-12">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h4 class="card-title mb-4">Short-Term Recommendations</h4>
-                                            <div class="table-responsive">
-                                                <table class="table table-centered table-nowrap mb-0">
-                                                    <thead class="thead-light">
-                                                        <tr>
-                                                            <th>Company Name</th>
-                                                            <th>Last Trading Price (LTP)</th>
-                                                            <th>Entry</th>
-                                                            <th>Target</th>
-                                                            <th>Stop Loss</th>
-                                                            <th>Call</th>
-                                                            <th>Details</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Discovery Communications INC. (DISCA)</td>
-                                                            <td>$ 41.81</td>
-                                                            <td>$ 42.10</td>
-                                                            <td>$ 53.40</td>
-                                                            <td>$ 39.50</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">Buy</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">FISERV INC. (FISV)</td>
-                                                            <td>$ 126.96</td>
-                                                            <td>$ 128.00</td>
-                                                            <td>$ 143.30</td>
-                                                            <td>$ 110.50</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">Buy</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Devon Energy Corporation (DVN)</td>
-                                                            <td>$ 22.04</td>
-                                                            <td>$ 22.10</td>
-                                                            <td>$ 25.61</td>
-                                                            <td>$ 21.30</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">Buy</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <!-- end table-responsive -->
-                                        </div>
+                            <div id="recommendations-container">
+                                <div class="text-center p-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="sr-only">Loading...</span>
                                     </div>
+                                    <p class="mt-3">Loading personalized recommendations...</p>
                                 </div>
                             </div>
-                            <!-- end row -->
-
-                            <div class="row">
-                                <div class="col-lg-12">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h4 class="card-title mb-4">Mid-Term Recommendations</h4>
-                                            <div class="table-responsive">
-                                                <table class="table table-centered table-nowrap mb-0">
-                                                    <thead class="thead-light">
-                                                        <tr>
-                                                            <th>Company Name</th>
-                                                            <th>Last Trading Price (LTP)</th>
-                                                            <th>Entry</th>
-                                                            <th>Target</th>
-                                                            <th>Holding Period</th>
-                                                            <th>Details</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Bank First Corp. (BFC)</td>
-                                                            <td>$ 72.28</td>
-                                                            <td>$ 75.00</td>
-                                                            <td>$ 98.50</td>
-                                                            <td>~ 1 year</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">ACNB Corp. (ACNB)</td>
-                                                            <td>$ 29.13</td>
-                                                            <td>$ 30.50</td>
-                                                            <td>$ 40.30</td>
-                                                            <td>~ 1.5 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Axos Financials INC. (AX)</td>
-                                                            <td>$ 48.53</td>
-                                                            <td>$ 50.20</td>
-                                                            <td>$ 62.75</td>
-                                                            <td>~ 2 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <!-- end table-responsive -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end row -->
-
-                            <div class="row">
-                                <div class="col-lg-12">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h4 class="card-title mb-4">Long-Term Recommendations</h4>
-                                            <div class="table-responsive">
-                                                <table class="table table-centered table-nowrap mb-0">
-                                                    <thead class="thead-light">
-                                                        <tr>
-                                                            <th>Company Name</th>
-                                                            <th>Last Trading Price (LTP)</th>
-                                                            <th>Fundamental Strength</th>
-                                                            <th>Expected Returns (CAGR)</th>
-                                                            <th>Holding Period</th>
-                                                            <th>Details</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Molina Healthcare INC. (MOL)</td>
-                                                            <td>$ 240.98</td>
-                                                            <td class="font-weight-bold">Strong</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">+ 12.29 %</td>
-                                                            <td>~ 4 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Public Storage (PSA)</td>
-                                                            <td>$ 257.88</td>
-                                                            <td class="font-weight-bold">Good</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">+ 11.23 %</td>
-                                                            <td>~ 5 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="text-body font-weight-bold">Best Buy Co. (BBY)</td>
-                                                            <td>$ 112.48</td>
-                                                            <td class="font-weight-bold">Very Strong</td>
-                                                            <td class="font-weight-bold" style="color:#34c38f;">+ 19.96 %</td>
-                                                            <td>~ 3 years</td>
-                                                            <td>
-                                                                <!-- Button trigger modal -->
-                                                                <button type="button" class="btn btn-primary btn-sm btn-rounded waves-effect waves-light">
-                                                                    View Details
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            <!-- end table-responsive -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- end row -->
+                            <!-- end recommendations-container -->
 
                             <footer class="footer">
                                 <div class="container-fluid">
@@ -1333,6 +1138,87 @@
                 });
             }
 
+            function renderRecommendationsTable(recommendations) {
+                let html = '';
+
+                if (!recommendations || recommendations.length === 0) {
+                    html = '<div class="alert alert-info"><p>No recommendations available. Complete your risk profile questionnaire first.</p></div>';
+                } else {
+                    html = '<div class="table-responsive"><table class="table table-centered table-nowrap mb-0"><thead class="thead-light"><tr>' +
+                        '<th class="text-center">Company</th>' +
+                        '<th class="text-center">Sector</th>' +
+                        '<th class="text-center">P/E Ratio</th>' +
+                        '<th class="text-center">Beta</th>' +
+                        '<th class="text-center">Dividend Yield</th>' +
+                        '<th class="text-center">Risk Match Score</th>' +
+                        '<th class="text-center">AI Sentiment</th>' +
+                        '<th class="text-center">ML Prediction</th>' +
+                        '<th class="text-center">Final Score</th>' +
+                        '<th class="text-center">Action</th>' +
+                        '</tr></thead><tbody>';
+
+                    recommendations.forEach(stock => {
+                        const scoreColor = stock.composite_score >= 70 ? '#34c38f' : stock.composite_score >= 50 ? '#f7b924' : '#f46a6a';
+                        html += `<tr>
+                            <td class="text-center"><strong>${stock.symbol}</strong><br><small>${stock.name}</small></td>
+                            <td class="text-center">${stock.sector || 'N/A'}</td>
+                            <td class="text-center">${stock.pe_ratio ? stock.pe_ratio.toFixed(2) : 'N/A'}</td>
+                            <td class="text-center">${stock.beta ? stock.beta.toFixed(2) : 'N/A'}</td>
+                            <td class="text-center">${stock.dividend_yield ? (stock.dividend_yield * 100).toFixed(2) + '%' : 'N/A'}</td>
+                            <td class="text-center"><span style="background-color: #e9ecef; padding: 5px 10px; border-radius: 4px;">${stock.risk_profile_score ? stock.risk_profile_score.toFixed(1) : 'N/A'}</span></td>
+                            <td class="text-center"><span style="background-color: #e9ecef; padding: 5px 10px; border-radius: 4px;">${stock.ai_sentiment_score ? stock.ai_sentiment_score.toFixed(1) : 'N/A'}</span></td>
+                            <td class="text-center"><span style="background-color: #e9ecef; padding: 5px 10px; border-radius: 4px;">${stock.trained_model_score ? stock.trained_model_score.toFixed(1) : 'N/A'}</span></td>
+                            <td class="text-center"><strong style="color: ${scoreColor}; font-size: 16px;">${stock.composite_score.toFixed(1)}</strong></td>
+                            <td class="text-center">
+                                <button class="btn btn-primary btn-sm" onclick="addToPortfolio('${stock.symbol}', '${stock.name}')">
+                                    <i class="fa fa-plus"></i> Add
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+
+                    html += '</tbody></table></div>';
+                }
+
+                return html;
+            }
+
+            function loadRecommendations() {
+                $.ajax({
+                    type: "GET",
+                    url: "/get-recommendations",
+                    dataType: "json",
+                    success: function(data) {
+                        let container = document.getElementById("recommendations-container");
+                        let html = '';
+
+                        if (data.hasOwnProperty('Error')) {
+                            html = '<div class="alert alert-warning"><p><strong>Error:</strong> ' + data.Error + '</p></div>';
+                        } else {
+                            let recommendations = data.similar_stocks || [];
+                            let message = data.message || 'Personalized recommendations based on your profile';
+                            let source = data.source || '';
+
+                            if (source === 'risk_profile') {
+                                html = '<div class="alert alert-info" style="background-color: #d1ecf1; border-color: #bee5eb;"><p><strong>Risk Profile Based Recommendations:</strong> ' + message + '</p></div>';
+                            } else {
+                                html = '<div class="alert alert-info" style="background-color: #d1ecf1; border-color: #bee5eb;"><p><strong>Portfolio Based Recommendations:</strong> ' + message + '</p></div>';
+                            }
+
+                            html += '<div class="row"><div class="col-lg-12"><div class="card"><div class="card-body">';
+                            html += renderRecommendationsTable(recommendations);
+                            html += '</div></div></div></div>';
+                        }
+
+                        container.innerHTML = html;
+                    },
+                    error: function() {
+                        document.getElementById("recommendations-container").innerHTML =
+                            '<div class="alert alert-danger"><p>Failed to load recommendations. Please try again.</p></div>';
+                    }
+                });
+            }
+
             function openTab(evt, tabName) {
                 // Declare all variables
                 var i, tabcontent, tablinks;
@@ -1352,6 +1238,9 @@
 
                 if (tabName === "portfolio-insights") {
                     getPortfolioInsights();
+                }
+                if (tabName === "recommendations") {
+                    loadRecommendations();
                 }
             }
             document.getElementById("defaultOpen").click();

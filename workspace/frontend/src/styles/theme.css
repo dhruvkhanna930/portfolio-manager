@@ -1,0 +1,39 @@
+:root {
+  --bg: #0A0B0F;
+  --surface: #12141A;
+  --surface-hover: #1A1D24;
+  --border: #22252C;
+  --text-primary: #F5F6FA;
+  --text-secondary: #9298A5;
+  /* Was #5C6270 -- measured contrast against --bg/--surface was only ~3.0-3.2:1,
+     below the 4.5:1 WCAG AA threshold for body text. Brightened while keeping
+     the same blue-gray hue; now ~4.65-4.97:1. */
+  --text-muted: #7A808E;
+  --accent: #22D3A6;
+  --accent-hover: #1CBF95;
+  --positive: #16C784;
+  --negative: #F6465D;
+  --warning: #F0B90B;
+  --radius: 12px;
+}
+
+/* Report/document theme (§15.6).
+   The PDF report is a document, not app chrome, so it renders on paper-white
+   both on screen and in print. This overrides the tokens at :root rather than
+   scoping to a container on purpose: every chart resolves its colours through
+   getComputedStyle(document.documentElement), so flipping here is what makes
+   axis labels and series colours legible on white. Set by pages/Report.jsx. */
+:root[data-theme='report'] {
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-hover: #F4F5F7;
+  --border: #D9DDE3;
+  --text-primary: #10131A;
+  --text-secondary: #454C59;
+  --text-muted: #666D7A;
+  --accent: #0E9E7A;
+  --accent-hover: #0B8768;
+  --positive: #0F8A5F;
+  --negative: #C4304A;
+  --warning: #9A7400;
+}

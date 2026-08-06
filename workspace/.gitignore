@@ -1,0 +1,23 @@
+# --- Python / Flask backend ---
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.db
+backend/.env
+backend/instance/
+*.pyc
+
+# --- Node / React frontend ---
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+npm-debug.log*
+
+# --- OS / editor ---
+.DS_Store
+.vscode/
+.idea/
+
+# root-level env file (contains real API keys) -- never commit
+.env

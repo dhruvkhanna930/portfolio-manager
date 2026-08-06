@@ -12,4 +12,10 @@ urlpatterns = [
     path('get-portfolio-insights', views.get_portfolio_insights, name="get-portfolio-insights"),
     path('backtesting', views.backtesting, name="backtesting"),
     path('get-recommendations', views.get_recommendations, name="get-recommendations"),
+    path('get-model-evaluation', views.get_model_evaluation, name='get-model-evaluation'),
+    path('wallet-add-credit', views.add_wallet_credit, name="wallet-add-credit"),
+    path('cart-add', views.add_to_cart, name="cart-add"),
+    path('cart-view', views.view_cart, name="cart-view"),
+    path('cart-remove', views.remove_from_cart, name="cart-remove"),
+    path('cart-checkout', views.checkout_cart, name="cart-checkout"),
 ]

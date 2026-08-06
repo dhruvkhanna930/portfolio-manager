@@ -1,25 +1,43 @@
 import csv
 import json
+import os
 import requests
 from datetime import datetime, timedelta
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from .models import Portfolio, StockHolding
+from .models import Portfolio, StockHolding, WalletTransaction
 from .portfolio_summary import build_portfolio_summary
-from .recommendations import get_portfolio_recommendations
+from .recommendations import get_portfolio_recommendations, get_initial_recommendations_by_risk_profile
 from .news_agent import get_portfolio_companies, save_portfolio_companies_to_file, fetch_portfolio_news
+from .trained_models import compute_trained_models_evaluation_matrix
 from riskprofile.models import RiskProfile
 from riskprofile.views import risk_profile
 import yfinance as yf
+
+# AlphaVantage API
+from alpha_vantage.timeseries import TimeSeries
+from alpha_vantage.fundamentaldata import FundamentalData
+import subprocess as sp
+
+def get_alphavantage_key():
+  return settings.ALPHAVANTAGE_KEY
+
+def _get_price_for_date(symbol, date):
+  ts = TimeSeries(key=get_alphavantage_key(), output_format='json')
+  data, meta_data = ts.get_daily(symbol=symbol, outputsize='compact')
+  try:
+    return float(data[date]['4. close'])
+  except KeyError:
+    raise ValueError(f"No trading data for {symbol} on {date} — markets were closed on this day. Please choose a trading day.")
 
 @login_required
 def dashboard(request):
   if RiskProfile.objects.filter(user=request.user).exists():
     try:
       portfolio = Portfolio.objects.get(user=request.user)
-    except:
+    except Portfolio.DoesNotExist:
       portfolio = Portfolio.objects.create(user=request.user)
     portfolio.update_investment()
     holding_companies = StockHolding.objects.filter(portfolio=portfolio)
@@ -57,6 +75,7 @@ def dashboard(request):
     context = {
       'holdings': holdings,
       'totalInvestment': portfolio.total_investment,
+      'walletBalance': portfolio.wallet_balance,
       'stocks': stocks,
       'sectors': sectors,
       'news': news
@@ -67,6 +86,7 @@ def dashboard(request):
     return redirect('risk-profile')
 
 
+@login_required
 def get_portfolio_insights(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
@@ -87,6 +107,7 @@ def get_portfolio_insights(request):
     return JsonResponse({"Error": str(e)})
 
 
+@login_required
 def update_values(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
@@ -129,6 +150,7 @@ def update_values(request):
     return JsonResponse({"Error": str(e)})
 
 
+@login_required
 def get_financials(request):
   try:
     symbol = request.GET.get('symbol')
@@ -184,42 +206,16 @@ def add_holding(request):
     try:
       portfolio = Portfolio.objects.get(user=request.user)
       holding_companies = StockHolding.objects.filter(portfolio=portfolio)
-      company_symbol = request.POST.get('company', '').strip()
-      company_name = request.POST.get('company_name', '').strip() or company_symbol
-      number_stocks = int(request.POST.get('number-stocks', 0))
-      trade_date = request.POST.get('date', '').strip()
-
-      if not company_symbol:
-        return HttpResponse("Please select a valid stock ticker.", status=400)
-      if number_stocks <= 0:
-        return HttpResponse("Number of stocks must be greater than zero.", status=400)
-      if not trade_date:
-        return HttpResponse("Please provide a valid trade date.", status=400)
-
-      ticker = yf.Ticker(company_symbol)
-      start_date = datetime.strptime(trade_date, '%Y-%m-%d')
-      end_date = (start_date + timedelta(days=1)).strftime('%Y-%m-%d')
-      history = ticker.history(start=trade_date, end=end_date)
-      buy_price = None
-
-      if not history.empty and not history['Close'].dropna().empty:
-        buy_price = float(history['Close'].dropna().iloc[0])
-      else:
-        recent = ticker.history(period='7d')
-        recent = recent[recent['Close'].notna()]
-        if not recent.empty:
-          buy_price = float(recent['Close'].iloc[-1])
-
-      if buy_price is None or buy_price == 0:
-        last_price = getattr(ticker.fast_info, 'last_price', None)
-        if last_price:
-          buy_price = float(last_price)
-
-      if buy_price is None or buy_price == 0:
-        return HttpResponse(f"No valid price data found for {company_symbol} around {trade_date}.", status=400)
-
-      info = ticker.info or {}
-      sector = info.get('sector', '')
+      company_symbol = request.POST['company'].split('(')[1].split(')')[0]
+      company_name = request.POST['company'].split('(')[0].strip()
+      number_stocks = int(request.POST['number-stocks'])
+      try:
+        buy_price = _get_price_for_date(company_symbol, request.POST['date'])
+      except ValueError as e:
+        return HttpResponse(str(e), status=400)
+      fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
+      data, meta_data = fd.get_company_overview(symbol=company_symbol)
+      sector = data['Sector']
 
       found = False
       for c in holding_companies:
@@ -239,14 +235,15 @@ def add_holding(request):
         c.buying_value.append([buy_price, number_stocks])
         c.save()
 
-      return JsonResponse({"status": "success"})
+      return HttpResponse("Success")
     except Exception as e:
       print(e)
-      return JsonResponse({"status": "error", "message": str(e)}, status=400)
-  return JsonResponse({"status": "error", "message": "Invalid request method."}, status=405)
+      return HttpResponse("Error adding holding", status=400)
 
+@login_required
 def send_company_list(request):
-  with open('nasdaq-listed.csv') as csv_file:
+  csv_path = os.path.join(os.path.dirname(__file__), '..', 'nasdaq-listed.csv')
+  with open(csv_path) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     line_count = 0
     rows = []
@@ -312,21 +309,277 @@ def fetch_news():
 
 
 def backtesting(request):
-  print('Function Called')
+  return JsonResponse({
+    "Error": "Backtesting feature is not yet implemented. Coming soon!"
+  }, status=501)
+
+
+@login_required
+def get_model_evaluation(request):
   try:
-    output = sp.check_output("quantdom", shell=True)
-  except sp.CalledProcessError:
-    output = 'No such command'
-  return HttpResponse("Success")
+    tickers_param = request.GET.get('tickers', '')
+    if tickers_param:
+      tickers = [ticker.strip().upper() for ticker in tickers_param.split(',') if ticker.strip()]
+    else:
+      tickers = ['AAPL', 'MSFT', 'GOOGL', 'TSLA']
+
+    max_samples_param = request.GET.get('max_samples', '50')
+    try:
+      max_samples = int(max_samples_param)
+    except ValueError:
+      max_samples = 50
+
+    matrix = compute_trained_models_evaluation_matrix(tickers, max_samples=max_samples)
+    return JsonResponse({
+      'model_evaluation': matrix,
+      'tickers': tickers,
+      'max_samples': max_samples
+    })
+  except Exception as e:
+    return JsonResponse({"Error": str(e)})
 
 
 @login_required
 def get_recommendations(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
-    recommendations = get_portfolio_recommendations(portfolio)
+    # Check if portfolio has holdings
+    holding_companies = StockHolding.objects.filter(portfolio=portfolio)
+
+    if holding_companies.exists():
+      # User has stocks, use portfolio-based recommendations
+      recommendations = get_portfolio_recommendations(portfolio)
+    else:
+      # User has no stocks, use risk profile-based recommendations
+      risk_profile = RiskProfile.objects.filter(user=request.user).first()
+      if risk_profile:
+        recommendations_list = get_initial_recommendations_by_risk_profile(
+          risk_profile.category,
+          num_recommendations=10
+        )
+        recommendations = {
+          'similar_stocks': recommendations_list,
+          'complementary_stocks': [],
+          'source': 'risk_profile',
+          'message': f'Personalized recommendations based on your {risk_profile.category} risk profile',
+          'ai_models_used': {
+            'sentiment_analysis': 'DistilBERT (Transformers)',
+            'stock_forecasting': 'LSTM with Exponential Smoothing Fallback',
+            'trained_models': {
+              'gru_1day': 'GRU model for 1-day price movement prediction',
+              'lstm_5day': 'LSTM model for 5-day price movement prediction'
+            },
+            'scoring_weights': {
+              'risk_profile_match': 0.40,
+              'sentiment_analysis': 0.35,
+              'trained_models': 0.25
+            }
+          }
+        }
+      else:
+        return JsonResponse({"Error": "Please complete risk profile first"})
+
     return JsonResponse(recommendations)
   except Portfolio.DoesNotExist:
-    return JsonResponse({"Error": "Portfolio not found"})
+    # No portfolio exists yet, create one and use risk profile
+    try:
+      portfolio = Portfolio.objects.create(user=request.user)
+      risk_profile = RiskProfile.objects.filter(user=request.user).first()
+
+      if risk_profile:
+        recommendations_list = get_initial_recommendations_by_risk_profile(
+          risk_profile.category,
+          num_recommendations=10
+        )
+        recommendations = {
+          'similar_stocks': recommendations_list,
+          'complementary_stocks': [],
+          'source': 'risk_profile',
+          'message': f'Personalized recommendations based on your {risk_profile.category} risk profile',
+          'ai_models_used': {
+            'sentiment_analysis': 'DistilBERT (Transformers)',
+            'stock_forecasting': 'LSTM with Exponential Smoothing Fallback',
+            'trained_models': {
+              'gru_1day': 'GRU model for 1-day price movement prediction',
+              'lstm_5day': 'LSTM model for 5-day price movement prediction'
+            },
+            'scoring_weights': {
+              'risk_profile_match': 0.40,
+              'sentiment_analysis': 0.35,
+              'trained_models': 0.25
+            }
+          }
+        }
+        return JsonResponse(recommendations)
+      else:
+        return JsonResponse({"Error": "Please complete risk profile first"})
+    except Exception as e:
+      return JsonResponse({"Error": str(e)})
   except Exception as e:
     return JsonResponse({"Error": str(e)})
+
+
+@login_required
+def add_wallet_credit(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      amount_str = request.POST.get('amount', '').strip()
+      if not amount_str:
+        return JsonResponse({"Error": "Please enter an amount"}, status=400)
+      try:
+        amount = float(amount_str)
+      except ValueError:
+        return JsonResponse({"Error": "Amount must be a valid number"}, status=400)
+      if amount <= 0:
+        return JsonResponse({"Error": "Amount must be greater than 0"}, status=400)
+      portfolio.wallet_balance += amount
+      portfolio.save()
+      WalletTransaction.objects.create(
+        portfolio=portfolio,
+        amount=amount,
+        transaction_type="CREDIT"
+      )
+      return JsonResponse({"WalletBalance": portfolio.wallet_balance})
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def add_to_cart(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      company_value = request.POST.get('company', '').strip()
+      if '(' in company_value:
+        company_symbol = company_value.split('(')[1].split(')')[0]
+        company_name = company_value.split('(')[0].strip()
+      else:
+        company_symbol = company_value
+        company_name = request.POST.get('company_name', '').strip() or company_symbol
+      number_stocks = int(request.POST['number-stocks'])
+      try:
+        buy_price = _get_price_for_date(company_symbol, request.POST['date'])
+      except ValueError as e:
+        return JsonResponse({"Error": str(e)}, status=400)
+      item_total = buy_price * number_stocks
+      cart = request.session.get('cart', [])
+      cart.append({
+        'symbol': company_symbol,
+        'name': company_name,
+        'quantity': number_stocks,
+        'price': buy_price,
+        'date': request.POST['date'],
+        'subtotal': item_total
+      })
+      request.session['cart'] = cart
+      request.session.modified = True
+      cart_total = sum(item['subtotal'] for item in cart)
+      return JsonResponse({
+        "Success": True,
+        "CartTotal": cart_total,
+        "CartCount": len(cart),
+        "Item": {
+          'symbol': company_symbol,
+          'name': company_name,
+          'quantity': number_stocks,
+          'price': buy_price,
+          'subtotal': item_total
+        }
+      })
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def view_cart(request):
+  try:
+    cart = request.session.get('cart', [])
+    cart_total = sum(item['subtotal'] for item in cart)
+    return JsonResponse({
+      "Cart": cart,
+      "CartTotal": cart_total,
+      "CartCount": len(cart)
+    })
+  except Exception as e:
+    return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def remove_from_cart(request):
+  if request.method == "POST":
+    try:
+      index = int(request.POST.get('index', -1))
+      cart = request.session.get('cart', [])
+      if 0 <= index < len(cart):
+        cart.pop(index)
+        request.session['cart'] = cart
+        request.session.modified = True
+      cart_total = sum(item['subtotal'] for item in cart)
+      return JsonResponse({
+        "CartTotal": cart_total,
+        "CartCount": len(cart)
+      })
+    except Exception as e:
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def checkout_cart(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      cart = request.session.get('cart', [])
+      if not cart:
+        return JsonResponse({"Error": "Cart is empty"}, status=400)
+      cart_total = sum(item['subtotal'] for item in cart)
+      if portfolio.wallet_balance < cart_total:
+        return JsonResponse({
+          "Error": f"Insufficient wallet balance. Need {cart_total}, have {portfolio.wallet_balance}"
+        }, status=400)
+      portfolio.wallet_balance -= cart_total
+      portfolio.save()
+      WalletTransaction.objects.create(
+        portfolio=portfolio,
+        amount=cart_total,
+        transaction_type="PURCHASE"
+      )
+      holding_companies = StockHolding.objects.filter(portfolio=portfolio)
+      for item in cart:
+        company_symbol = item['symbol']
+        company_name = item['name']
+        number_stocks = item['quantity']
+        buy_price = item['price']
+        fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
+        data, meta_data = fd.get_company_overview(symbol=company_symbol)
+        sector = data['Sector']
+        found = False
+        for c in holding_companies:
+          if c.company_symbol == company_symbol:
+            c.buying_value.append([buy_price, number_stocks])
+            c.save()
+            found = True
+            break
+        if not found:
+          c = StockHolding.objects.create(
+            portfolio=portfolio,
+            company_name=company_name,
+            company_symbol=company_symbol,
+            number_of_shares=number_stocks,
+            sector=sector
+          )
+          c.buying_value.append([buy_price, number_stocks])
+          c.save()
+      request.session['cart'] = []
+      request.session.modified = True
+      portfolio.update_investment()
+      return JsonResponse({
+        "Success": True,
+        "WalletBalance": portfolio.wallet_balance,
+        "Message": "Purchase completed successfully"
+      })
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)

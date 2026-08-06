@@ -33,7 +33,7 @@ SECRET_KEY = str(os.getenv('SECRET_KEY', 'dev-secret-key'))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
 
 LOGIN_REDIRECT_URL = '/dashboard'
 ACCOUNT_LOGIN_REDIRECT_URL = '/dashboard'
@@ -82,7 +82,10 @@ ROOT_URLCONF = 'portfolio_management_system.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [str(FRONTEND_DIR / 'templates')],
+        'DIRS': [
+            str(FRONTEND_DIR / 'templates'),
+            str(BASE_DIR / 'templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -204,16 +207,6 @@ LOGIN_REDIRECT_URL = "/"
 
 
 ALPHAVANTAGE_KEY = str(os.getenv('ALPHAVANTAGE_KEY'))
-
-
-# Alphavantage key
-ALPHAVANTAGE_KEY1 = ALPHAVANTAGE_KEY
-ALPHAVANTAGE_KEY2 = ALPHAVANTAGE_KEY
-ALPHAVANTAGE_KEY3 = ALPHAVANTAGE_KEY
-ALPHAVANTAGE_KEY4 = ALPHAVANTAGE_KEY
-ALPHAVANTAGE_KEY5 = ALPHAVANTAGE_KEY
-ALPHAVANTAGE_KEY6 = ALPHAVANTAGE_KEY
-ALPHAVANTAGE_KEY7 = ALPHAVANTAGE_KEY
 
 
 NEWSAPI_KEY = str(os.getenv('NEWSAPI_KEY'))

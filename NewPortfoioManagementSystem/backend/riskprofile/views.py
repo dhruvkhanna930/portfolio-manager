@@ -1,7 +1,10 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
+from django.views.decorators.http import require_http_methods
 from .models import RiskProfile
+from dashboard.recommendations import get_initial_recommendations_by_risk_profile
+from django.http import JsonResponse
 
 QUESTION_SCORE_MAP = {
     'q1-option': {
@@ -158,6 +161,21 @@ def risk_profile(request):
         except Exception as e:
             return HttpResponse('Error: ' + str(e), status=500)
 
-        return redirect('dashboard')
+        # Generate initial recommendations based on risk profile
+        recommendations = get_initial_recommendations_by_risk_profile(
+            category,
+            num_recommendations=10,
+            use_ai=True
+        )
+
+        context = {
+            'risk_profile': profile_obj,
+            'risk_category': category,
+            'total_score': total_score,
+            'recommendations': recommendations,
+            'message': f'Based on your {category} risk profile, here are {len(recommendations)} recommended stocks to get you started!'
+        }
+
+        return render(request, 'riskprofile/recommendations.html', context)
 
     return render(request, 'riskprofile/risk-profile.html', {'risk_profile': risk_profile})
