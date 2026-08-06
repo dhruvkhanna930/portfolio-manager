@@ -226,6 +226,7 @@
                             <div class="dropdown-menu dropdown-menu-right">
                                 <!-- item-->
                                 <a class="dropdown-item" href="{% url 'profile' %}"><i class="uil uil-user-circle font-size-18 align-middle text-muted mr-1"></i> <span class="align-middle">View Profile</span></a>
+                                <a class="dropdown-item" href="{% url 'transactions' %}"><i class="uil uil-history font-size-18 align-middle text-muted mr-1"></i> <span class="align-middle">Transactions</span></a>
                                 {% comment %} <a class="dropdown-item" href="#"><i class="uil uil-wallet font-size-18 align-middle mr-1 text-muted"></i> <span class="align-middle">My Wallet</span></a> {% endcomment %}
                                 {% comment %} <a class="dropdown-item d-block" href="#"><i class="uil uil-cog font-size-18 align-middle mr-1 text-muted"></i> <span class="align-middle">Settings</span> <span class="badge badge-soft-success badge-pill mt-1 ml-2">03</span></a> {% endcomment %}
                                 {% comment %} <a class="dropdown-item" href="#"><i class="uil uil-lock-alt font-size-18 align-middle mr-1 text-muted"></i> <span class="align-middle">Lock screen</span></a> {% endcomment %}
@@ -517,6 +518,7 @@
                                                         <div class="modal-body">
                                                             <form id="add-holding-form" method="post" action="{% url 'add-holding' %}">
                                                                 {% csrf_token %}
+                                                                <input type="hidden" name="company_name" id="company_name" value="">
                                                                 <div class="form-group row mb-4">
                                                                     <label for="horizontal-firstname-input" class="col-sm-3 col-form-label">Stock Ticker :</label>
                                                                     <div class="col-sm-9">
@@ -532,7 +534,7 @@
                                                                 <div class="form-group row mb-4">
                                                                     <label for="example-date-input" class="col-sm-3 col-form-label">Number of Stocks</label>
                                                                     <div class="col-sm-9">
-                                                                        <input name="number-stocks" class="form-control" type="number" value="0" min="0" step="1" id="number-stocks">
+                                                                        <input name="number-stocks" class="form-control" type="number" value="1" min="1" step="1" id="number-stocks">
                                                                     </div>
                                                                 </div>
                                                                 <div class="row mt-4 justify-content-center">
@@ -559,6 +561,7 @@
                                                             <th class="text-center" class="font-weight-bold">P&L</th>
                                                             <th class="text-center">Net Change</th>
                                                             <th class="text-center">Details</th>
+                                                            <th class="text-center">Sell</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -588,6 +591,13 @@
                                                                     type="button" class="btn btn-primary btn-md btn-rounded waves-effect waves-light"
                                                                     data-toggle="modal" data-target="#stockdetails-{{ c.CompanySymbol }}" onclick="getFinancials('{{ c.CompanySymbol }}')">
                                                                     View Details
+                                                                </button>
+                                                            </td>
+                                                            <td class="text-center">
+                                                                <button 
+                                                                    type="button" class="btn btn-danger btn-sm btn-rounded waves-effect waves-light"
+                                                                    onclick="openSellModal('{{ c.CompanySymbol }}', '{{ c.CompanyName }}', {{ c.NumberShares }})">
+                                                                    Sell
                                                                 </button>
                                                             </td>
                                                         </tr>
@@ -938,28 +948,34 @@
                             </div>
                             <!-- end page title -->
 
-                            {% for n1, n2 in news %}
-                                <div class="row">
-                                    <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <h4 class="card-title mb-2">{{ n1.0 }}</h4>
-                                                <p>{{ n1.1 }}</p>
-                                                <a href="{{ n1.2 }}">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                            {% if news %}
+                                {% for n1, n2 in news %}
+                                    <div class="row">
+                                        <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h4 class="card-title mb-2">{{ n1.0 }}</h4>
+                                                    <p>{{ n1.1 }}</p>
+                                                    <a href="{{ n1.2 }}" target="_blank">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h4 class="card-title mb-2">{{ n2.0 }}</h4>
+                                                    <p>{{ n2.1 }}</p>
+                                                    <a href="{{ n2.2 }}" target="_blank">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <h4 class="card-title mb-2">{{ n2.0 }}</h4>
-                                                <p>{{ n2.1 }}</p>
-                                                <a href="{{ n2.2 }}">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    No recent news found for your current portfolio holdings. Try adding more tickers, or check your `NEWSAPI_KEY` configuration.
                                 </div>
-                            {% endfor %}
+                            {% endif %}
 
                             <footer class="footer">
                                 <div class="container-fluid">
@@ -1236,8 +1252,8 @@
                 $.ajax({
                     type: "POST",
                     url: url,
-                    data: form.serialize(),
                     dataType: "json",
+                    data: form.serialize(),
                     success: function(data) {
                         if (data.hasOwnProperty('WalletBalance')) {
                             $('#wallet-balance-display').text('$' + parseFloat(data['WalletBalance']).toFixed(2));
@@ -1377,6 +1393,55 @@
                         cartItems = data['Cart'];
                         updateCartDisplay();
                     }
+                });
+            });
+
+            // Sell shares
+            function openSellModal(symbol, company, shares) {
+                $('#sell-symbol').val(symbol);
+                $('#sell-company').text(company + ' (' + symbol + ')');
+                $('#sell-owned').text(shares);
+                $('#sell-shares').attr('max', shares);
+                $('#sell-shares').val('');
+                $('#sellModal').modal('show');
+            }
+
+            $(document).ready(function() {
+                $('#sell-form').submit(function(e) {
+                    e.preventDefault();
+                    var owned = parseInt($('#sell-owned').text(), 10);
+                    var shares = parseInt($('#sell-shares').val(), 10);
+                    if (!shares || shares <= 0) {
+                        alert('Please enter a valid number of shares.');
+                        return;
+                    }
+                    if (shares > owned) {
+                        alert('You cannot sell more shares than you own (' + owned + ').');
+                        return;
+                    }
+                    $.ajax({
+                        type: "POST",
+                        url: "/sell-holding",
+                        data: $(this).serialize(),
+                        dataType: "json",
+                        success: function(data) {
+                            if (data.hasOwnProperty('Success') && data['Success']) {
+                                $('#sellModal').modal('toggle');
+                                alert(data['Message']);
+                                window.location.reload();
+                            } else {
+                                alert('Error: ' + data['Error']);
+                            }
+                        },
+                        error: function(xhr) {
+                            try {
+                                var error = JSON.parse(xhr.responseText);
+                                alert('Error: ' + error['Error']);
+                            } catch(e) {
+                                alert('Error selling shares. Please try again.');
+                            }
+                        }
+                    });
                 });
             });
         </script>
@@ -1533,8 +1598,15 @@
                 var datalist = document.getElementById("company");
                 for (var i = 0; i < data.length; i++) {
                     var option = document.createElement("option");
-                    option.innerHTML = data[i][1] + " &nbsp;(" + data[i][0] + ")";
+                    option.value = data[i][0];
+                    option.text = data[i][1] + " (" + data[i][0] + ")";
+                    option.dataset.name = data[i][1];
                     datalist.append(option);
+                }
+                if (datalist.options.length > 0) {
+                    datalist.selectedIndex = 0;
+                    var selected = datalist.options[datalist.selectedIndex];
+                    document.getElementById("company_name").value = selected.dataset.name || selected.text;
                 }
             }
 
@@ -1544,6 +1616,11 @@
                     url: "/company-list",
                     dataType: "json",
                     success: function(data) { processData(data["data"]); }
+                });
+
+                $(document).on('change', '#company', function() {
+                    var selected = $(this).find('option:selected');
+                    $('#company_name').val(selected.data('name') || selected.text());
                 });
             });
         </script>
@@ -1897,6 +1974,49 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Continue Shopping</button>
                         <button type="button" class="btn btn-success" id="checkout-btn" onclick="checkoutCart()" style="display:none;">Checkout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sell Modal -->
+        <div id="sellModal" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Sell Shares</h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="sell-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="symbol" id="sell-symbol" value="">
+                            <div class="form-group row mb-4">
+                                <label class="col-sm-4 col-form-label">Company</label>
+                                <div class="col-sm-8">
+                                    <p class="form-control-static font-weight-bold mb-0" id="sell-company">-</p>
+                                </div>
+                            </div>
+                            <div class="form-group row mb-4">
+                                <label class="col-sm-4 col-form-label">Shares you own</label>
+                                <div class="col-sm-8">
+                                    <p class="form-control-static mb-0" id="sell-owned">-</p>
+                                </div>
+                            </div>
+                            <div class="form-group row mb-4">
+                                <label for="sell-shares" class="col-sm-4 col-form-label">Number of shares</label>
+                                <div class="col-sm-8">
+                                    <input name="shares" class="form-control" type="number" value="" min="1" id="sell-shares" placeholder="Enter quantity">
+                                </div>
+                            </div>
+                            <p class="text-muted small mb-0">Proceeds will be credited to your wallet at the current market price.</p>
+                            <div class="row mt-3 justify-content-center">
+                                <button type="submit" class="btn btn-danger w-md">Sell</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                     </div>
                 </div>
             </div>

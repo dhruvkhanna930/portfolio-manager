@@ -765,28 +765,34 @@
                             </div>
                             <!-- end page title -->
 
-                            {% for n1, n2 in news %}
-                                <div class="row">
-                                    <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <h4 class="card-title mb-2">{{ n1.0 }}</h4>
-                                                <p>{{ n1.1 }}</p>
-                                                <a href="{{ n1.2 }}">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                            {% if news %}
+                                {% for n1, n2 in news %}
+                                    <div class="row">
+                                        <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h4 class="card-title mb-2">{{ n1.0 }}</h4>
+                                                    <p>{{ n1.1 }}</p>
+                                                    <a href="{{ n1.2 }}" target="_blank">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h4 class="card-title mb-2">{{ n2.0 }}</h4>
+                                                    <p>{{ n2.1 }}</p>
+                                                    <a href="{{ n2.2 }}" target="_blank">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <h4 class="card-title mb-2">{{ n2.0 }}</h4>
-                                                <p>{{ n2.1 }}</p>
-                                                <a href="{{ n2.2 }}">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    No news could be fetched for your portfolio. Please check your NEWSAPI key, or refresh after adding more holdings.
                                 </div>
-                            {% endfor %}
+                            {% endif %}
 
                             <footer class="footer">
                                 <div class="container-fluid">

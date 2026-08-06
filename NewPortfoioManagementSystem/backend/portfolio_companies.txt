@@ -1,0 +1,6 @@
+symbol	name
+AAIT	iShares MSCI All Country Asia Information Technology Index Fund
+INTC	Intel Corporation
+AAPL	Apple Inc.
+MMYT	MakeMyTrip Limited
+SLVO	Credit Suisse AG

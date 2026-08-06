@@ -1,0 +1,110 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Transactions | Portfolio Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{% static 'dashboard/css/bootstrap.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'dashboard/css/icons.min.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'dashboard/css/app.min.css' %}" rel="stylesheet" type="text/css" />
+    <style>
+      body { background: #f4f7fb; }
+      .txn-card { background: #fff; border-radius: 16px; box-shadow: 0 16px 45px rgba(40, 57, 101, 0.08); }
+      .txn-section { min-height: 100vh; padding: 40px 0; }
+      .txn-metric { background: #f8fbff; border-radius: 16px; padding: 20px 26px; }
+      .text-muted-small { color: #6c757d; }
+      .badge-credit { background: #d4edda; color: #155724; }
+      .badge-purchase { background: #ffeeba; color: #856404; }
+      .badge-sell { background: #d1ecf1; color: #0c5460; }
+      .badge-debit { background: #f8d7da; color: #721c24; }
+      .txn-table th { white-space: nowrap; }
+    </style>
+</head>
+
+<body>
+    <div class="container txn-section">
+      <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap">
+          <div>
+            <h1 class="mb-1">Transactions</h1>
+            <p class="text-muted-small mb-0">Wallet credits and stock purchases/sells for your portfolio.</p>
+          </div>
+          <div class="mt-2 mt-sm-0">
+            <a href="{% url 'dashboard' %}" class="btn btn-outline-primary">Back to Dashboard</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+          <div class="txn-metric">
+            <h3 class="h6 text-uppercase text-muted mb-1">Wallet balance</h3>
+            <p class="h4 mb-0">$ {{ wallet_balance|floatformat:2 }}</p>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="txn-metric">
+            <h3 class="h6 text-uppercase text-muted mb-1">Total invested</h3>
+            <p class="h4 mb-0">$ {{ total_investment|floatformat:2 }}</p>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="txn-metric">
+            <h3 class="h6 text-uppercase text-muted mb-1">Transactions</h3>
+            <p class="h4 mb-0">{{ transactions|length }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row justify-content-center">
+        <div class="col-xl-10">
+          <div class="txn-card p-4">
+            {% if transactions %}
+            <div class="table-responsive">
+              <table class="table table-striped txn-table mb-0">
+                <thead class="thead-light">
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Type</th>
+                    <th class="text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for txn in transactions %}
+                  <tr>
+                    <td>{{ txn.timestamp }}</td>
+                    <td>
+                      {% if txn.transaction_type == "CREDIT" %}
+                        <span class="badge badge-credit px-2 py-1">Credit</span>
+                      {% elif txn.transaction_type == "SELL" %}
+                        <span class="badge badge-sell px-2 py-1">Sell</span>
+                      {% elif txn.transaction_type == "PURCHASE" %}
+                        <span class="badge badge-purchase px-2 py-1">Purchase</span>
+                      {% else %}
+                        <span class="badge badge-debit px-2 py-1">{{ txn.transaction_type }}</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-right">
+                      {% if txn.transaction_type == "CREDIT" or txn.transaction_type == "SELL" %}
+                        <span class="text-success">+ $ {{ txn.amount|floatformat:2 }}</span>
+                      {% else %}
+                        <span class="text-danger">- $ {{ txn.amount|floatformat:2 }}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No transactions yet. Add credit to your wallet or make a purchase to get started.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+</body>
+
+</html>
