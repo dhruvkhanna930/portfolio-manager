@@ -47,6 +47,17 @@ function Dashboard() {
       <Header />
       <main className="dashboard-main">
         <div className="container">
+          <div className="dashboard-header">
+            <h1>Portfolio Dashboard</h1>
+            <button
+              onClick={fetchPortfolioData}
+              disabled={loading}
+              className="refresh-btn"
+              title="Refresh portfolio data"
+            >
+              {loading ? 'Refreshing...' : '🔄 Refresh'}
+            </button>
+          </div>
           <PortfolioSummary data={portfolioData} />
           <div className="dashboard-grid">
             <div className="dashboard-chart">
