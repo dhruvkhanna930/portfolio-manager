@@ -17,6 +17,11 @@ class Config:
     NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
     NEWS_API_PROVIDER = os.environ.get("NEWS_API_PROVIDER", "marketaux")
 
+    # AI Suggestions (Phase 17). Groq's free tier; the app degrades to a
+    # "not configured" panel rather than erroring when this is unset.
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+    GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+
     PRICE_SYNC_INTERVAL_MIN = int(os.environ.get("PRICE_SYNC_INTERVAL_MIN", "30"))
 
     API_TITLE = "Portfolio Manager API"

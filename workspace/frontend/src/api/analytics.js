@@ -148,3 +148,21 @@ export async function fetchAssetForecast(assetId) {
   const { data } = await apiClient.get(`/recommendations/forecast/${assetId}`)
   return data
 }
+
+// --- Phase 17: AI suggestions ---
+
+export async function fetchAiStatus() {
+  const { data } = await apiClient.get('/ai/status')
+  return data
+}
+
+/**
+ * POST rather than GET: this spends a rate-limited Groq call, so it must be an
+ * explicit user action that React Query never refetches on its own.
+ */
+export async function generateAiReview({ period = '1Y', force = false } = {}) {
+  const { data } = await apiClient.post('/ai/portfolio-review', null, {
+    params: { period, force },
+  })
+  return data
+}
