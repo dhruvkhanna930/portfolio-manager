@@ -1,0 +1,320 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'dashboard/css/glassmorphism.css' %}">
+
+<style>
+  .holdings-header {
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .holdings-header h1 {
+    font-size: 2rem;
+    color: #2c3e50;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .add-holding-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.85rem 1.75rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .add-holding-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
+  }
+
+  .holdings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .holding-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow:
+      0 8px 32px 0 rgba(31, 38, 135, 0.37),
+      inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .holding-card:hover {
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow:
+      0 16px 48px 0 rgba(31, 38, 135, 0.45),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    transform: translateY(-4px);
+  }
+
+  .holding-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+  }
+
+  .holding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .holding-symbol {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #2c3e50;
+  }
+
+  .holding-name {
+    color: #999;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+  }
+
+  .holding-badge {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .holding-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 1rem 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-label {
+    color: #999;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #667eea;
+  }
+
+  .holding-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 0.65rem;
+    border: 1px solid #667eea;
+    background: transparent;
+    color: #667eea;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+  }
+
+  .action-btn:hover {
+    background: #667eea;
+    color: white;
+  }
+
+  .portfolio-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .summary-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    text-align: center;
+  }
+
+  .summary-card.primary {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-color: rgba(102, 126, 234, 0.3);
+  }
+
+  .summary-label {
+    color: #999;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.75rem;
+  }
+
+  .summary-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #667eea;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: #999;
+  }
+
+  .empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  .empty-state-text {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 768px) {
+    .holdings-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .holdings-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .portfolio-summary {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="holdings-header">
+  <h1>📈 Your Holdings</h1>
+  <a href="{% url 'add-holding' %}" class="add-holding-btn">+ Add Holding</a>
+</div>
+
+<!-- Portfolio Summary -->
+<div class="portfolio-summary">
+  <div class="summary-card primary">
+    <div class="summary-label">Total Invested</div>
+    <div class="summary-value">${{ totalInvestment|floatformat:2 }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Holdings</div>
+    <div class="summary-value">{{ holdings|length }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Sectors</div>
+    <div class="summary-value">{{ sectors.1|length }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Diversification</div>
+    <div class="summary-value">8.5/10</div>
+  </div>
+</div>
+
+<!-- Holdings Cards -->
+{% if holdings %}
+<div class="holdings-grid">
+  {% for holding in holdings %}
+  <div class="holding-card">
+    <div class="holding-header">
+      <div>
+        <div class="holding-symbol">{{ holding.CompanySymbol }}</div>
+        <div class="holding-name">{{ holding.CompanyName }}</div>
+      </div>
+      <div class="holding-badge">Active</div>
+    </div>
+
+    <div class="holding-stats">
+      <div class="stat-item">
+        <div class="stat-label">Shares</div>
+        <div class="stat-value">{{ holding.NumberShares }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Invested</div>
+        <div class="stat-value">${{ holding.InvestmentAmount|floatformat:0 }}</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <div style="color: #999; font-size: 0.85rem; margin-bottom: 0.5rem;">AVG COST PER SHARE</div>
+      <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">
+        ${{ holding.AverageCost|floatformat:2 }}
+      </div>
+    </div>
+
+    <div class="holding-actions">
+      <button class="action-btn" onclick="editHolding('{{ holding.CompanySymbol }}')">
+        ✏️ Edit
+      </button>
+      <button class="action-btn" onclick="removeHolding('{{ holding.CompanySymbol }}')">
+        🗑️ Remove
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="holding-card">
+  <div class="empty-state">
+    <div class="empty-state-icon">📭</div>
+    <div class="empty-state-text">No holdings yet</div>
+    <p style="margin-bottom: 1.5rem; color: #bbb;">Start building your portfolio by adding your first stock</p>
+    <a href="{% url 'add-holding' %}" class="add-holding-btn">+ Add Your First Holding</a>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  function editHolding(symbol) {
+    alert('Edit functionality for ' + symbol);
+    // Implement edit modal/form here
+  }
+
+  function removeHolding(symbol) {
+    if (confirm('Are you sure you want to remove ' + symbol + ' from your portfolio?')) {
+      // Call delete API
+      alert('Removing ' + symbol);
+    }
+  }
+</script>
+{% endblock %}
