@@ -6,10 +6,10 @@ import { cn } from '../../utils/cn'
 /**
  * Analytics menu.
  *
- * Only the first entry is built. The other two are shown as explicitly disabled
- * "Soon" rows rather than links to an empty page: a menu item that navigates
- * somewhere blank reads as a broken feature, while a disabled row reads as a
- * roadmap. They become real NavLinks by setting `to` when the pages exist.
+ * All three entries are built as of Phase 17. The disabled-row branch below is
+ * kept deliberately: it renders any future entry with `to: null` as an explicit
+ * "Soon" row rather than a link to an empty page, since a menu item that
+ * navigates somewhere blank reads as a broken feature.
  */
 export const ANALYTICS_LINKS = [
   { to: '/analytics', label: 'Advanced Analytics', hint: 'Risk, correlation, projections' },
@@ -18,7 +18,11 @@ export const ANALYTICS_LINKS = [
     label: 'Recommendation Model',
     hint: 'Ranked candidates with score breakdown',
   },
-  { to: null, label: 'AI Suggestions', hint: 'Not built yet' },
+  {
+    to: '/ai-suggestions',
+    label: 'AI Suggestions',
+    hint: 'Plain-English review of your numbers',
+  },
 ]
 
 export default function AnalyticsDropdown() {

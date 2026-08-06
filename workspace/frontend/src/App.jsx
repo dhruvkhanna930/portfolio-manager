@@ -13,6 +13,7 @@ import News from './pages/News'
 import Analytics from './pages/Analytics'
 import Goals from './pages/Goals'
 import Recommendations from './pages/Recommendations'
+import AiSuggestions from './pages/AiSuggestions'
 
 
 // The report is a separate destination, not part of normal navigation -- keep
@@ -70,6 +71,7 @@ function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/recommendations" element={<Recommendations />} />
+        <Route path="/ai-suggestions" element={<AiSuggestions />} />
         <Route path="/styleguide" element={<Styleguide />} />
       </Route>
     </Routes>
