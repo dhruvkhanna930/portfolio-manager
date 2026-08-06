@@ -115,3 +115,39 @@ class TransactionHistoryTests(TestCase):
         self.client.logout()
         response = self.client.get("/transactions")
         self.assertEqual(response.status_code, 302)
+
+
+class ExportDataTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="exportuser", password="pass12345")
+        self.client.login(username="exportuser", password="pass12345")
+        self.portfolio = Portfolio.objects.create(user=self.user)
+        StockHolding.objects.create(
+            portfolio=self.portfolio,
+            company_symbol="AAPL",
+            company_name="Apple Inc.",
+            sector="Technology",
+            buying_value=[[10.0, 5]],
+        )
+        WalletTransaction.objects.create(
+            portfolio=self.portfolio, amount=100.0, transaction_type="CREDIT"
+        )
+
+    def test_export_holdings_csv(self):
+        response = self.client.get("/export?type=holdings")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertContains(response, "AAPL")
+
+    def test_export_transactions_csv(self):
+        response = self.client.get("/export?type=transactions")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertContains(response, "CREDIT")
+        self.assertContains(response, "100")
+
+    def test_export_requires_login(self):
+        self.client.logout()
+        response = self.client.get("/export")
+        self.assertEqual(response.status_code, 302)

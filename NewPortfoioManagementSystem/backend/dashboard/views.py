@@ -769,3 +769,32 @@ def remove_from_watchlist(request):
     except Exception as e:
       print(e)
       return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def export_data(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+  except Portfolio.DoesNotExist:
+    portfolio = Portfolio.objects.create(user=request.user)
+
+  export_type = request.GET.get('type', 'holdings')
+
+  response = HttpResponse(content_type='text/csv')
+  writer = csv.writer(response)
+
+  if export_type == 'transactions':
+    response['Content-Disposition'] = 'attachment; filename="transactions.csv"'
+    writer.writerow(['Timestamp', 'Type', 'Amount'])
+    transactions = WalletTransaction.objects.filter(portfolio=portfolio).order_by('-timestamp')
+    for txn in transactions:
+      writer.writerow([txn.timestamp.isoformat(), txn.transaction_type, txn.amount])
+  else:
+    response['Content-Disposition'] = 'attachment; filename="holdings.csv"'
+    writer.writerow(['Company Name', 'Symbol', 'Sector', 'Number of Shares', 'Investment Amount', 'Average Cost'])
+    holdings = StockHolding.objects.filter(portfolio=portfolio)
+    for h in holdings:
+      avg_cost = h.investment_amount / h.number_of_shares if h.number_of_shares else 0
+      writer.writerow([h.company_name, h.company_symbol, h.sector, h.number_of_shares, h.investment_amount, round(avg_cost, 2)])
+
+  return response
