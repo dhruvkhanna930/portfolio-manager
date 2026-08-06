@@ -9,6 +9,7 @@ function Dashboard() {
   const [portfolioData, setPortfolioData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     fetchPortfolioData();
@@ -30,6 +31,7 @@ function Dashboard() {
         ]
       };
       setPortfolioData(mockData);
+      setLastUpdated(new Date());
       setError(null);
     } catch (err) {
       setError('Failed to fetch portfolio data');
@@ -49,14 +51,21 @@ function Dashboard() {
         <div className="container">
           <div className="dashboard-header">
             <h1>Portfolio Dashboard</h1>
-            <button
-              onClick={fetchPortfolioData}
-              disabled={loading}
-              className="refresh-btn"
-              title="Refresh portfolio data"
-            >
-              {loading ? 'Refreshing...' : '🔄 Refresh'}
-            </button>
+            <div className="header-actions">
+              <button
+                onClick={fetchPortfolioData}
+                disabled={loading}
+                className="refresh-btn"
+                title="Refresh portfolio data"
+              >
+                {loading ? 'Refreshing...' : '🔄 Refresh'}
+              </button>
+              {lastUpdated && (
+                <span className="last-updated">
+                  Last updated: {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
           </div>
           <PortfolioSummary data={portfolioData} />
           <div className="dashboard-grid">

@@ -23,6 +23,13 @@
   margin: 0;
   font-size: 2rem;
   color: var(--text-primary);
+  flex: 1;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .refresh-btn {
@@ -50,6 +57,12 @@
 .refresh-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.last-updated {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #666);
+  white-space: nowrap;
 }
 
 .dashboard-grid {
