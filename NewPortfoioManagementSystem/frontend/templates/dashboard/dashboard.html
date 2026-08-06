@@ -356,6 +356,19 @@
                             </div>
 
                             <div class="row">
+                                <div class="col-md-3 col-sm-6">
+                                    <div class="card">
+                                        <div class="card-body text-center">
+                                            <i class="uil-heart font-size-32 text-danger mb-2"></i>
+                                            <h6 class="card-title mb-1 text-muted">Watchlist Items</h6>
+                                            <h4 class="mb-0" id="watchlist-count-display">0</h4>
+                                            <button type="button" class="btn btn-sm btn-danger mt-2" data-toggle="modal" data-target="#watchlistModal">View Watchlist</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
                                 <div class="col-12">
                                     <div class="tradingview-widget-container">
                                         <div class="tradingview-widget-container__widget"></div>
@@ -1368,6 +1381,151 @@
             });
         </script>
 
+        <!-- Watchlist Management -->
+        <script>
+            var watchlistItems = [];
+            var companiesList = [];
+
+            function updateWatchlistDisplay() {
+                var tbody = $('#watchlist-items-tbody');
+                var emptyMsg = $('#empty-watchlist-msg');
+                var countDisplay = $('#watchlist-count-display');
+                tbody.empty();
+
+                if (watchlistItems.length === 0) {
+                    emptyMsg.show();
+                } else {
+                    emptyMsg.hide();
+                    watchlistItems.forEach(function(item, index) {
+                        var priceStr = item.current_price ? '$' + parseFloat(item.current_price).toFixed(2) : 'N/A';
+                        var addedDate = new Date(item.added_on).toLocaleDateString();
+                        var row = `<tr>
+                            <td><strong>${item.symbol}</strong></td>
+                            <td>${item.name}</td>
+                            <td>${priceStr}</td>
+                            <td>${addedDate}</td>
+                            <td><button class="btn btn-sm btn-danger" onclick="removeFromWatchlist('${item.symbol}')">Remove</button></td>
+                        </tr>`;
+                        tbody.append(row);
+                    });
+                }
+                countDisplay.text(watchlistItems.length);
+                $('#watchlist-count').text(watchlistItems.length);
+            }
+
+            function loadWatchlist() {
+                $.ajax({
+                    type: "GET",
+                    url: "/watchlist-view",
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.hasOwnProperty('Watchlist')) {
+                            watchlistItems = data['Watchlist'];
+                            updateWatchlistDisplay();
+                        }
+                    }
+                });
+            }
+
+            function addToWatchlistFromInput() {
+                var input = $('#watchlist-search-input').val().trim();
+                if (!input) {
+                    alert("Please select a stock");
+                    return;
+                }
+                addToWatchlist(input);
+            }
+
+            function addToWatchlist(company) {
+                $.ajax({
+                    type: "POST",
+                    url: "/watchlist-add",
+                    data: {
+                        company: company,
+                        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                    },
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.hasOwnProperty('Success') && data['Success']) {
+                            $('#watchlist-search-input').val('');
+                            loadWatchlist();
+                            alert("Added to watchlist!");
+                        } else {
+                            alert(data['Message'] || "Error adding to watchlist");
+                        }
+                    },
+                    error: function(xhr) {
+                        try {
+                            var error = JSON.parse(xhr.responseText);
+                            alert("Error: " + error['Error']);
+                        } catch(e) {
+                            alert("Error adding to watchlist");
+                        }
+                    }
+                });
+            }
+
+            function removeFromWatchlist(symbol) {
+                $.ajax({
+                    type: "POST",
+                    url: "/watchlist-remove",
+                    data: {
+                        symbol: symbol,
+                        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                    },
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.hasOwnProperty('Success') && data['Success']) {
+                            loadWatchlist();
+                            alert("Removed from watchlist!");
+                        }
+                    }
+                });
+            }
+
+            // Load watchlist on page load
+            $(document).ready(function() {
+                loadWatchlist();
+            });
+
+            // Reload watchlist when modal opens
+            $('#watchlistModal').on('shown.bs.modal', function() {
+                loadWatchlist();
+            });
+
+            // Populate watchlist autocomplete
+            $(document).ready(function() {
+                $.ajax({
+                    type: "GET",
+                    url: "/company-list",
+                    dataType: "json",
+                    success: function(data) {
+                        companiesList = data['data'];
+                        populateWatchlistAutocomplete();
+                    }
+                });
+
+                function populateWatchlistAutocomplete() {
+                    $('#watchlist-search-input').on('input', function() {
+                        var input = $(this).val().toLowerCase();
+                        var datalist = $('#watchlist-companies');
+                        datalist.empty();
+
+                        if (input.length > 0) {
+                            companiesList.forEach(function(company) {
+                                var symbol = company[0];
+                                var name = company[1];
+                                if (symbol.toLowerCase().includes(input) || name.toLowerCase().includes(input)) {
+                                    var option = $('<option>').attr('value', name + ' (' + symbol + ')').text(name + ' (' + symbol + ')');
+                                    datalist.append(option);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        </script>
+
         <!-- Script for getting the list of companies for showing it in the add new holding dropdown -->
         <!-- This will be called only once -->
         <script>
@@ -1739,6 +1897,49 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Continue Shopping</button>
                         <button type="button" class="btn btn-success" id="checkout-btn" onclick="checkoutCart()" style="display:none;">Checkout</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Watchlist Modal -->
+        <div id="watchlistModal" class="modal fade" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Watchlist (<span id="watchlist-count">0</span>)</h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group mb-3">
+                            <label>Add to Watchlist</label>
+                            <input type="text" id="watchlist-search-input" class="form-control" placeholder="Search stock symbol or name...">
+                            <small class="form-text text-muted">Start typing to see suggestions</small>
+                            <datalist id="watchlist-companies" class="mt-2"></datalist>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary mb-3" id="add-to-watchlist-btn" onclick="addToWatchlistFromInput()">Add to Watchlist</button>
+
+                        <div id="watchlist-items-container" class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol</th>
+                                        <th>Name</th>
+                                        <th>Current Price</th>
+                                        <th>Added On</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="watchlist-items-tbody">
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="empty-watchlist-msg" class="text-center text-muted py-4">
+                            <p>Your watchlist is empty</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>

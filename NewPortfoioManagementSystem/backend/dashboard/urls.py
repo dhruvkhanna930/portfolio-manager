@@ -11,14 +11,14 @@ urlpatterns = [
     path('portfolio-summary', views.portfolio_summary, name="portfolio-summary"),
     path('get-portfolio-insights', views.get_portfolio_insights, name="get-portfolio-insights"),
     path('backtesting', views.backtesting, name="backtesting"),
-<<<<<<< HEAD
-    path('get-recommendations', views.get_recommendations, name="get-recommendations"),    path('get-model-evaluation', views.get_model_evaluation, name='get-model-evaluation'),]
-=======
     path('get-recommendations', views.get_recommendations, name="get-recommendations"),
+    path('get-model-evaluation', views.get_model_evaluation, name='get-model-evaluation'),
     path('wallet-add-credit', views.add_wallet_credit, name="wallet-add-credit"),
     path('cart-add', views.add_to_cart, name="cart-add"),
     path('cart-view', views.view_cart, name="cart-view"),
     path('cart-remove', views.remove_from_cart, name="cart-remove"),
     path('cart-checkout', views.checkout_cart, name="cart-checkout"),
+    path('watchlist-add', views.add_to_watchlist, name="watchlist-add"),
+    path('watchlist-view', views.view_watchlist, name="watchlist-view"),
+    path('watchlist-remove', views.remove_from_watchlist, name="watchlist-remove"),
 ]
->>>>>>> 0a3003f792809098c951e4696ac03f3132d9d46c
