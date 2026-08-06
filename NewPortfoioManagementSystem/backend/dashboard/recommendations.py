@@ -1,50 +1,43 @@
 import numpy as np
 import pandas as pd
+import yfinance as yf
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
-from alpha_vantage.fundamentaldata import FundamentalData
 from django.conf import settings
 import random
 from .models import StockHolding
 
 
-def get_alphavantage_key():
-    """Get a random AlphaVantage API key from settings"""
-    alphavantage_keys = [
-        settings.ALPHAVANTAGE_KEY1,
-        settings.ALPHAVANTAGE_KEY2,
-        settings.ALPHAVANTAGE_KEY3,
-        settings.ALPHAVANTAGE_KEY4,
-        settings.ALPHAVANTAGE_KEY5,
-        settings.ALPHAVANTAGE_KEY6,
-        settings.ALPHAVANTAGE_KEY7,
-    ]
-    return random.choice(alphavantage_keys)
-
-
 def get_stock_fundamentals(symbol):
-    """Fetch fundamental data for a stock from AlphaVantage API"""
+    """Fetch fundamental data for a stock from yfinance."""
     try:
-        fd = FundamentalData(key=get_alphavantage_key(), output_format='json')
-        data, meta_data = fd.get_company_overview(symbol=symbol)
+        ticker = yf.Ticker(symbol)
+        info = ticker.info or {}
 
-        if not data or 'Symbol' not in data:
+        if not info or 'symbol' not in info and not info.get('shortName'):
             print(f"No data returned for {symbol}")
             return None
 
+        pe_ratio = info.get('trailingPE') or info.get('forwardPE') or 0
+        beta = info.get('beta', 0)
+        market_cap = info.get('marketCap', 0)
+        dividend_yield = info.get('dividendYield', 0)
+        profit_margin = info.get('profitMargins', 0)
+        return_on_equity = info.get('returnOnEquity', 0)
+
         return {
             'symbol': symbol,
-            'name': data.get('Name', ''),
-            'sector': data.get('Sector', ''),
-            'industry': data.get('Industry', ''),
-            'pe_ratio': float(data.get('PERatio', 0)) if data.get('PERatio') not in ['None', 'N/A', ''] else 0,
-            'beta': float(data.get('Beta', 0)) if data.get('Beta') not in ['None', 'N/A', ''] else 0,
-            'market_cap': float(data.get('MarketCapitalization', 0)) if data.get('MarketCapitalization') not in ['None', 'N/A', ''] else 0,
-            'dividend_yield': float(data.get('DividendYield', 0)) if data.get('DividendYield') not in ['None', 'N/A', ''] else 0,
-            'profit_margin': float(data.get('ProfitMargin', 0)) if data.get('ProfitMargin') not in ['None', 'N/A', ''] else 0,
-            'return_on_equity': float(data.get('ReturnOnEquityTTM', 0)) if data.get('ReturnOnEquityTTM') not in ['None', 'N/A', ''] else 0,
-            'fifty_two_week_high': float(data.get('52WeekHigh', 0)) if data.get('52WeekHigh') not in ['None', 'N/A', ''] else 0,
-            'fifty_two_week_low': float(data.get('52WeekLow', 0)) if data.get('52WeekLow') not in ['None', 'N/A', ''] else 0,
+            'name': info.get('longName', info.get('shortName', '')),
+            'sector': info.get('sector', ''),
+            'industry': info.get('industry', ''),
+            'pe_ratio': float(pe_ratio) if pe_ratio not in [None, 'None', 'N/A', ''] else 0,
+            'beta': float(beta) if beta not in [None, 'None', 'N/A', ''] else 0,
+            'market_cap': float(market_cap) if market_cap not in [None, 'None', 'N/A', ''] else 0,
+            'dividend_yield': float(dividend_yield) if dividend_yield not in [None, 'None', 'N/A', ''] else 0,
+            'profit_margin': float(profit_margin) if profit_margin not in [None, 'None', 'N/A', ''] else 0,
+            'return_on_equity': float(return_on_equity) if return_on_equity not in [None, 'None', 'N/A', ''] else 0,
+            'fifty_two_week_high': float(info.get('fiftyTwoWeekHigh', 0)) if info.get('fiftyTwoWeekHigh') not in [None, 'None', 'N/A', ''] else 0,
+            'fifty_two_week_low': float(info.get('fiftyTwoWeekLow', 0)) if info.get('fiftyTwoWeekLow') not in [None, 'None', 'N/A', ''] else 0,
         }
     except Exception as e:
         print(f"Error fetching fundamentals for {symbol}: {str(e)}")

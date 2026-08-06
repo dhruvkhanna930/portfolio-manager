@@ -503,6 +503,7 @@
                                                         <div class="modal-body">
                                                             <form id="add-holding-form" method="post" action="{% url 'add-holding' %}">
                                                                 {% csrf_token %}
+                                                                <input type="hidden" name="company_name" id="company_name" value="">
                                                                 <div class="form-group row mb-4">
                                                                     <label for="horizontal-firstname-input" class="col-sm-3 col-form-label">Stock Ticker :</label>
                                                                     <div class="col-sm-9">
@@ -518,7 +519,7 @@
                                                                 <div class="form-group row mb-4">
                                                                     <label for="example-date-input" class="col-sm-3 col-form-label">Number of Stocks</label>
                                                                     <div class="col-sm-9">
-                                                                        <input name="number-stocks" class="form-control" type="number" value="0" min="0" step="1" id="number-stocks">
+                                                                        <input name="number-stocks" class="form-control" type="number" value="1" min="1" step="1" id="number-stocks">
                                                                     </div>
                                                                 </div>
                                                                 <div class="row mt-4 justify-content-center">
@@ -924,28 +925,34 @@
                             </div>
                             <!-- end page title -->
 
-                            {% for n1, n2 in news %}
-                                <div class="row">
-                                    <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <h4 class="card-title mb-2">{{ n1.0 }}</h4>
-                                                <p>{{ n1.1 }}</p>
-                                                <a href="{{ n1.2 }}">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                            {% if news %}
+                                {% for n1, n2 in news %}
+                                    <div class="row">
+                                        <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h4 class="card-title mb-2">{{ n1.0 }}</h4>
+                                                    <p>{{ n1.1 }}</p>
+                                                    <a href="{{ n1.2 }}" target="_blank">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <h4 class="card-title mb-2">{{ n2.0 }}</h4>
+                                                    <p>{{ n2.1 }}</p>
+                                                    <a href="{{ n2.2 }}" target="_blank">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-sm-12 d-flex align-items-stretch">
-                                        <div class="card">
-                                            <div class="card-body">
-                                                <h4 class="card-title mb-2">{{ n2.0 }}</h4>
-                                                <p>{{ n2.1 }}</p>
-                                                <a href="{{ n2.2 }}">Read More &nbsp;<i class="fas fa-long-arrow-alt-right"></i></a>
-                                            </div>
-                                        </div>
-                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    No recent news found for your current portfolio holdings. Try adding more tickers, or check your `NEWSAPI_KEY` configuration.
                                 </div>
-                            {% endfor %}
+                            {% endif %}
 
                             <footer class="footer">
                                 <div class="container-fluid">
@@ -1198,24 +1205,32 @@
         <!-- Script for submitting the form with AJAX -->
         <script>
             function addStockHoldingResult(data) {
-                if (data === "Success") {
-                    $('#myModal').modal('toggle');
-                    alert("Stock Holding successfully added to your portfolio");
-                    location.reload();
+                if (data && data.status === "success") {
+                    $('#myModal').modal('hide');
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 250);
                 } else {
-                    alert("Error adding the stock holding\n"); // + "Message: " + data);
+                    var message = (data && data.message) ? data.message : 'Error adding the stock holding.';
+                    alert("Error adding the stock holding:\n" + message);
                 }
             }
 
             $("#add-holding-form").submit(function(e) {
-                e.preventDefault(); // avoid to execute the actual submit of the form.
+                e.preventDefault();
                 var form = $(this);
                 var url = form.attr('action');
                 $.ajax({
                     type: "POST",
                     url: url,
+                    dataType: "json",
                     data: form.serialize(),
-                    success: function(data) { addStockHoldingResult(data) }
+                    cache: false,
+                    success: function(data) { addStockHoldingResult(data); },
+                    error: function(xhr) {
+                        var response = xhr.responseJSON || {message: xhr.responseText || 'Unknown error'};
+                        addStockHoldingResult(response);
+                    }
                 });
             });
         </script>
@@ -1227,8 +1242,15 @@
                 var datalist = document.getElementById("company");
                 for (var i = 0; i < data.length; i++) {
                     var option = document.createElement("option");
-                    option.innerHTML = data[i][1] + " &nbsp;(" + data[i][0] + ")";
+                    option.value = data[i][0];
+                    option.text = data[i][1] + " (" + data[i][0] + ")";
+                    option.dataset.name = data[i][1];
                     datalist.append(option);
+                }
+                if (datalist.options.length > 0) {
+                    datalist.selectedIndex = 0;
+                    var selected = datalist.options[datalist.selectedIndex];
+                    document.getElementById("company_name").value = selected.dataset.name || selected.text;
                 }
             }
 
@@ -1238,6 +1260,11 @@
                     url: "/company-list",
                     dataType: "json",
                     success: function(data) { processData(data["data"]); }
+                });
+
+                $(document).on('change', '#company', function() {
+                    var selected = $(this).find('option:selected');
+                    $('#company_name').val(selected.data('name') || selected.text());
                 });
             });
         </script>
