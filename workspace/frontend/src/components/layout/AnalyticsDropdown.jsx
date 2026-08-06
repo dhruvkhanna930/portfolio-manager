@@ -13,7 +13,11 @@ import { cn } from '../../utils/cn'
  */
 export const ANALYTICS_LINKS = [
   { to: '/analytics', label: 'Advanced Analytics', hint: 'Risk, correlation, projections' },
-  { to: null, label: 'Recommendation Model', hint: 'Not built yet' },
+  {
+    to: '/recommendations',
+    label: 'Recommendation Model',
+    hint: 'Ranked candidates with score breakdown',
+  },
   { to: null, label: 'AI Suggestions', hint: 'Not built yet' },
 ]
 
