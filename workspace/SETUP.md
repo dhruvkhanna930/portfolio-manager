@@ -58,8 +58,25 @@ risk metric and analytics page comes up empty.
 python seed_demo.py
 ```
 
-That drops and recreates every table, then writes the exact dataset the demo
-runs on:
+**There is no separate database setup step.** No `createdb`, no
+`flask db upgrade`, no migration command — `seed_demo.py` calls `create_all()`
+itself, so it builds the schema and populates it in one go against an empty
+directory. (A `migrations/` folder exists for schema evolution in prod; you do
+not need it to run locally.)
+
+On a brand-new clone you will see one line before the seed output:
+
+```
+No database found -- skipping the Nifty50 constituent seed.
+Run `python seed_demo.py` to create and populate it.
+```
+
+That is expected and harmless — the app tries to top up its market-movers
+basket at startup, before the database exists. The seed then creates
+everything. It does not appear on subsequent runs.
+
+`seed_demo.py` drops and recreates every table, then writes the exact dataset
+the demo runs on:
 
 ```
 holdings         15          10 stocks + 5 mutual funds

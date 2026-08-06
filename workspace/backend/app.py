@@ -67,14 +67,29 @@ def create_app(config_class=Config):
     # debug reloader's parent+child process pair.
     if not app.config.get("TESTING") and (not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true"):
         with app.app_context():
+            import logging
+
+            from sqlalchemy import inspect
+
             from services.market_service import seed_index_constituents
 
-            try:
-                seed_index_constituents()
-            except Exception:
-                import logging
+            logger = logging.getLogger(__name__)
 
-                logging.getLogger(__name__).warning("Nifty50 constituent seed failed", exc_info=True)
+            # A freshly cloned repo has no dev.db -- seed_demo.py is what creates
+            # it. Querying here first raised "no such table" and dumped a
+            # fatal-looking traceback on the documented first-run path, even
+            # though the seed that follows succeeds normally. Check the table
+            # exists before touching it, and say something useful if it doesn't.
+            if inspect(db.engine).has_table("market_index_constituents"):
+                try:
+                    seed_index_constituents()
+                except Exception:
+                    logger.warning("Nifty50 constituent seed failed", exc_info=True)
+            else:
+                logger.warning(
+                    "No database found -- skipping the Nifty50 constituent seed. "
+                    "Run `python seed_demo.py` to create and populate it."
+                )
 
         from jobs.price_sync import start_price_sync_job
 
