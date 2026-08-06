@@ -10,9 +10,7 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 from .models import StockHolding
-<<<<<<< HEAD
 from .trained_models import compute_trained_model_scores, blend_with_model_scores
-=======
 import json
 
 
@@ -27,7 +25,6 @@ def convert_to_json_serializable(obj):
     elif isinstance(obj, (list, tuple)):
         return [convert_to_json_serializable(item) for item in obj]
     return obj
->>>>>>> 0a3003f792809098c951e4696ac03f3132d9d46c
 
 try:
     from alpha_vantage.fundamentaldata import FundamentalData
@@ -762,7 +759,14 @@ def get_portfolio_recommendations(portfolio, use_ai=True):
         } if use_ai else None
     }
 
-<<<<<<< HEAD
+    # Convert numpy types to JSON serializable Python types
+    recommendations = convert_to_json_serializable(recommendations)
+
+    # Cache recommendations for 24 hours (86400 seconds)
+    cache.set(cache_key, recommendations, 86400)
+
+    return recommendations
+
 
 def get_risk_profile_stock_universe(risk_category):
     """Get appropriate stock universe based on risk profile"""
@@ -917,12 +921,3 @@ def get_initial_recommendations_by_risk_profile(risk_category, num_recommendatio
         import traceback
         traceback.print_exc()
         return []
-=======
-    # Convert numpy types to JSON serializable Python types
-    recommendations = convert_to_json_serializable(recommendations)
-
-    # Cache recommendations for 24 hours (86400 seconds)
-    cache.set(cache_key, recommendations, 86400)
-
-    return recommendations
->>>>>>> 0a3003f792809098c951e4696ac03f3132d9d46c

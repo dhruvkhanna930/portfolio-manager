@@ -48,5 +48,18 @@ class WalletTransaction(models.Model):
   transaction_type = models.CharField(max_length=20)
   timestamp = models.DateTimeField(auto_now_add=True)
 
+
+class WatchlistItem(models.Model):
+  portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE)
+  company_symbol = models.CharField(max_length=25)
+  company_name = models.CharField(max_length=100)
+  added_on = models.DateTimeField(auto_now_add=True)
+
+  class Meta:
+    unique_together = ('portfolio', 'company_symbol')
+
+  def __str__(self):
+    return f"{self.portfolio} -> {self.company_symbol}"
+
   def __str__(self):
     return f"{self.portfolio.user} - {self.transaction_type} {self.amount} at {self.timestamp}"
