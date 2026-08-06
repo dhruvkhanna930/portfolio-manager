@@ -20,4 +20,7 @@ urlpatterns = [
     path('cart-checkout', views.checkout_cart, name="cart-checkout"),
     path('sell-holding', views.sell_holding, name="sell-holding"),
     path('transactions', views.transaction_history, name="transactions"),
+    path('watchlist-add', views.add_to_watchlist, name="watchlist-add"),
+    path('watchlist-view', views.view_watchlist, name="watchlist-view"),
+    path('watchlist-remove', views.remove_from_watchlist, name="watchlist-remove"),
 ]

@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.conf import settings
-from .models import Portfolio, StockHolding, WalletTransaction
+from .models import Portfolio, StockHolding, WalletTransaction, WatchlistItem
 from .portfolio_summary import build_portfolio_summary
 from .recommendations import get_portfolio_recommendations, get_initial_recommendations_by_risk_profile
 from .news_agent import get_portfolio_companies, save_portfolio_companies_to_file, fetch_portfolio_news
@@ -687,6 +687,58 @@ def sell_holding(request):
 
 
 @login_required
+def add_to_watchlist(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      company_symbol = request.POST['company'].split('(')[1].split(')')[0]
+      company_name = request.POST['company'].split('(')[0].strip()
+
+      watchlist_item, created = WatchlistItem.objects.get_or_create(
+        portfolio=portfolio,
+        company_symbol=company_symbol,
+        defaults={'company_name': company_name}
+      )
+
+      if created:
+        return JsonResponse({"Success": True, "Symbol": company_symbol, "Name": company_name})
+      else:
+        return JsonResponse({"Success": False, "Message": "Already in watchlist"}, status=400)
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def view_watchlist(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+    watchlist_items = WatchlistItem.objects.filter(portfolio=portfolio)
+
+    watchlist_data = []
+    ts = TimeSeries(key=get_alphavantage_key(), output_format='json')
+
+    for item in watchlist_items:
+      try:
+        data, meta_data = ts.get_quote_endpoint(symbol=item.company_symbol)
+        current_price = float(data['05. price'])
+      except:
+        current_price = None
+
+      watchlist_data.append({
+        'symbol': item.company_symbol,
+        'name': item.company_name,
+        'current_price': current_price,
+        'added_on': item.added_on.isoformat()
+      })
+
+    return JsonResponse({"Watchlist": watchlist_data})
+  except Exception as e:
+    print(e)
+    return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
 def transaction_history(request):
   try:
     portfolio = Portfolio.objects.get(user=request.user)
@@ -699,3 +751,21 @@ def transaction_history(request):
     'wallet_balance': portfolio.wallet_balance,
     'total_investment': portfolio.total_investment,
   })
+
+
+@login_required
+def remove_from_watchlist(request):
+  if request.method == "POST":
+    try:
+      portfolio = Portfolio.objects.get(user=request.user)
+      symbol = request.POST.get('symbol', '')
+
+      WatchlistItem.objects.filter(
+        portfolio=portfolio,
+        company_symbol=symbol
+      ).delete()
+
+      return JsonResponse({"Success": True})
+    except Exception as e:
+      print(e)
+      return JsonResponse({"Error": str(e)}, status=400)
