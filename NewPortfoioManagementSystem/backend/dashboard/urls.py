@@ -23,4 +23,5 @@ urlpatterns = [
     path('watchlist-add', views.add_to_watchlist, name="watchlist-add"),
     path('watchlist-view', views.view_watchlist, name="watchlist-view"),
     path('watchlist-remove', views.remove_from_watchlist, name="watchlist-remove"),
+    path('export', views.export_data, name="export-data"),
 ]

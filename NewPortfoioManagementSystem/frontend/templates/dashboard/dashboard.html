@@ -333,6 +333,7 @@
                                             <h6 class="card-title mb-1 text-muted">Wallet Balance</h6>
                                             <h4 class="mb-0" id="wallet-balance-display">${{ walletBalance|floatformat:2 }}</h4>
                                             <button type="button" class="btn btn-sm btn-info mt-2" data-toggle="modal" data-target="#walletModal">Add Credit</button>
+                                            <a href="{% url 'export-data' %}?type=holdings" class="btn btn-sm btn-outline-secondary mt-2 ml-1">Export Holdings</a>
                                         </div>
                                     </div>
                                 </div>
