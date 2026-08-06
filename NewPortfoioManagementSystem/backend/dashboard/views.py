@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.conf import settings
 from .models import Portfolio, StockHolding, WalletTransaction
 from .portfolio_summary import build_portfolio_summary
@@ -32,6 +33,23 @@ def _get_price_for_date(symbol, date):
   except KeyError:
     raise ValueError(f"No trading data for {symbol} on {date} — markets were closed on this day. Please choose a trading day.")
 
+def _get_current_price(symbol):
+  try:
+    ticker = yf.Ticker(symbol)
+    last_price = None
+    try:
+      last_price = getattr(ticker.fast_info, 'last_price', None)
+    except Exception:
+      last_price = None
+    if last_price is None:
+      hist = ticker.history(period='2d')
+      if not hist.empty:
+        last_price = hist['Close'].iloc[-1]
+    return float(last_price or 0)
+  except Exception as e:
+    print(f"Error fetching current price for {symbol}: {e}")
+    return 0.0
+
 @login_required
 def dashboard(request):
   if RiskProfile.objects.filter(user=request.user).exists():
@@ -50,7 +68,7 @@ def dashboard(request):
       company_name = c.company_name
       number_shares = c.number_of_shares
       investment_amount = c.investment_amount
-      average_cost = investment_amount / number_shares
+      average_cost = investment_amount / number_shares if number_shares else 0
       holdings.append({
         'CompanySymbol': company_symbol,
         'CompanyName': company_name,
@@ -58,14 +76,16 @@ def dashboard(request):
         'InvestmentAmount': investment_amount,
         'AverageCost': average_cost,
       })
-      stocks[0].append(round((investment_amount / portfolio.total_investment) * 100, 2))
+      total = portfolio.total_investment or 0
+      stocks[0].append(round((investment_amount / total) * 100, 2) if total else 0)
       stocks[1].append(company_symbol)
       if c.sector in sector_wise_investment:
         sector_wise_investment[c.sector] += investment_amount
       else:
         sector_wise_investment[c.sector] = investment_amount
     for sec in sector_wise_investment.keys():
-      sectors[0].append(round((sector_wise_investment[sec] / portfolio.total_investment) * 100, 2))
+      total = portfolio.total_investment or 0
+      sectors[0].append(round((sector_wise_investment[sec] / total) * 100, 2) if total else 0)
       sectors[1].append(sec)
 
     companies = get_portfolio_companies(portfolio)
@@ -100,9 +120,11 @@ def get_portfolio_insights(request):
       pe = info.get('trailingPE') or info.get('forwardPE') or info.get('PERatio') or 0
       beta = float(beta) if beta not in [None, 'None', 'N/A', ''] else 0
       pe = float(pe) if pe not in [None, 'None', 'N/A', ''] else 0
-      portfolio_beta += beta * (c.investment_amount / portfolio.total_investment)
-      portfolio_pe += pe * (c.investment_amount / portfolio.total_investment)
-    return JsonResponse({"PortfolioBeta": portfolio_beta, "PortfolioPE": portfolio_pe})
+      total = portfolio.total_investment or 0
+      weight = (c.investment_amount / total) if total else 0
+      portfolio_beta += beta * weight
+      portfolio_pe += pe * weight
+    return JsonResponse({"PortfolioBeta": round(portfolio_beta, 2), "PortfolioPE": round(portfolio_pe, 2)})
   except Exception as e:
     return JsonResponse({"Error": str(e)})
 
@@ -201,6 +223,7 @@ def profile(request):
 
 
 @login_required
+@require_POST
 def add_holding(request):
   if request.method == "POST":
     try:
@@ -420,6 +443,7 @@ def get_recommendations(request):
 
 
 @login_required
+@require_POST
 def add_wallet_credit(request):
   if request.method == "POST":
     try:
@@ -447,6 +471,7 @@ def add_wallet_credit(request):
 
 
 @login_required
+@require_POST
 def add_to_cart(request):
   if request.method == "POST":
     try:
@@ -527,6 +552,7 @@ def remove_from_cart(request):
 
 
 @login_required
+@require_POST
 def checkout_cart(request):
   if request.method == "POST":
     try:
@@ -583,3 +609,93 @@ def checkout_cart(request):
     except Exception as e:
       print(e)
       return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def sell_holding(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+    symbol = request.POST.get('symbol', '').strip().upper()
+    shares_str = request.POST.get('shares', '').strip()
+
+    if not symbol:
+      return JsonResponse({"Error": "Missing stock symbol"}, status=400)
+
+    try:
+      shares = int(shares_str)
+    except ValueError:
+      return JsonResponse({"Error": "Shares must be a whole number"}, status=400)
+
+    if shares <= 0:
+      return JsonResponse({"Error": "Shares must be greater than 0"}, status=400)
+
+    holding = StockHolding.objects.filter(portfolio=portfolio, company_symbol=symbol).first()
+    if not holding:
+      return JsonResponse({"Error": f"No holding found for {symbol}"}, status=400)
+
+    total_shares = holding.number_of_shares
+    if shares > total_shares:
+      return JsonResponse({
+        "Error": f"Insufficient shares. You own {total_shares} shares of {symbol}"
+      }, status=400)
+
+    sell_price = _get_current_price(symbol)
+    if sell_price <= 0:
+      return JsonResponse({"Error": f"Could not fetch the current market price for {symbol}"}, status=400)
+
+    proceeds = round(sell_price * shares, 2)
+
+    remaining = shares
+    new_buying_value = []
+    for price, quantity in holding.buying_value:
+      if remaining <= 0:
+        new_buying_value.append([price, quantity])
+      elif quantity <= remaining:
+        remaining -= quantity
+      else:
+        new_buying_value.append([price, quantity - remaining])
+        remaining = 0
+
+    if not new_buying_value:
+      holding.delete()
+    else:
+      holding.buying_value = new_buying_value
+      holding.save()
+
+    portfolio.wallet_balance += proceeds
+    portfolio.save()
+    WalletTransaction.objects.create(
+      portfolio=portfolio,
+      amount=proceeds,
+      transaction_type="SELL"
+    )
+    portfolio.update_investment()
+
+    return JsonResponse({
+      "Success": True,
+      "Proceeds": proceeds,
+      "SellPrice": sell_price,
+      "SharesSold": shares,
+      "RemainingShares": total_shares - shares,
+      "WalletBalance": portfolio.wallet_balance,
+      "Message": f"Sold {shares} shares of {symbol} for ${proceeds:.2f}"
+    })
+  except Exception as e:
+    print(e)
+    return JsonResponse({"Error": str(e)}, status=400)
+
+
+@login_required
+def transaction_history(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+  except Portfolio.DoesNotExist:
+    portfolio = Portfolio.objects.create(user=request.user)
+
+  transactions = WalletTransaction.objects.filter(portfolio=portfolio).order_by('-timestamp')
+  return render(request, 'dashboard/transactions.html', {
+    'transactions': transactions,
+    'wallet_balance': portfolio.wallet_balance,
+    'total_investment': portfolio.total_investment,
+  })

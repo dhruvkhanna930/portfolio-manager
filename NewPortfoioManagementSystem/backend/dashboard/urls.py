@@ -18,4 +18,6 @@ urlpatterns = [
     path('cart-view', views.view_cart, name="cart-view"),
     path('cart-remove', views.remove_from_cart, name="cart-remove"),
     path('cart-checkout', views.checkout_cart, name="cart-checkout"),
+    path('sell-holding', views.sell_holding, name="sell-holding"),
+    path('transactions', views.transaction_history, name="transactions"),
 ]
