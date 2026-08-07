@@ -18,9 +18,9 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     migrate.init_app(app, db)
-    CORS(app)
 
     api = Api(app)
+    CORS(app, origins='*', allow_headers='*', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     register_error_handlers(app)
 
     from routes.analytics import blp as analytics_blp

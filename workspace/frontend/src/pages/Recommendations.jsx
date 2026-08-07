@@ -10,8 +10,9 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Info, Cpu, AlertTriangle } from 'lucide-react'
 
-import { Badge, Card, EmptyState, Select, Skeleton, Tabs } from '../components/ui'
+import { Badge, Card, EmptyState, Select, Tabs } from '../components/ui'
 import RecommendationCard from '../components/recommendations/RecommendationCard'
+import RecommendationLoader from '../components/recommendations/RecommendationLoader'
 import { useRecommendations } from '../hooks/useRecommendations'
 
 const MODES = [
@@ -82,7 +83,15 @@ export default function Recommendations() {
   const [mode, setMode] = useState('similar')
   const [riskProfile, setRiskProfile] = useState('balanced')
 
-  const { data, isLoading, isError } = useRecommendations({ mode, riskProfile, limit: 8 })
+  const { data, isLoading, isFetching, isError } = useRecommendations({
+    mode,
+    riskProfile,
+    limit: 8,
+  })
+  // keepPreviousData (useRecommendations.js) means switching modes refetches
+  // in the background while the old ranking stays on screen -- isLoading only
+  // fires once, on a session's very first request. This flags that quieter case.
+  const isRefreshing = isFetching && !isLoading
 
   const items = data?.recommendations ?? []
 
@@ -121,7 +130,15 @@ export default function Recommendations() {
 
       <Tabs tabs={MODES} value={mode} onChange={setMode} />
 
-      <p className="text-sm text-text-secondary">{MODE_BLURB[mode]}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-text-secondary">{MODE_BLURB[mode]}</p>
+        {isRefreshing && (
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+            Updating ranking…
+          </span>
+        )}
+      </div>
 
       {isError && (
         <EmptyState
@@ -130,13 +147,7 @@ export default function Recommendations() {
         />
       )}
 
-      {isLoading && (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-44 w-full rounded" />
-          ))}
-        </div>
-      )}
+      {isLoading && <RecommendationLoader />}
 
       {!isLoading && !isError && items.length === 0 && (
         <EmptyState

@@ -1,0 +1,126 @@
+/* Visual refresh layer for auth pages (login/signup/logout/password reset).
+   Loaded after bootstrap.min.css, common.css and theme-03.css — overrides only,
+   the .forny-* structure and form field names stay untouched. */
+
+:root {
+  --pm-grad-start: #667eea;
+  --pm-grad-end: #764ba2;
+  --pm-gradient: linear-gradient(135deg, var(--pm-grad-start) 0%, var(--pm-grad-end) 100%);
+}
+
+html, body {
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Poppins', var(--forny-font-family, sans-serif);
+}
+
+.forny-container {
+  min-height: 100vh;
+  background: var(--pm-gradient);
+}
+
+.forny-inner {
+  width: 100%;
+  padding: 2rem 1rem;
+}
+
+/* The white auth card, lifted above the gradient backdrop */
+.forny-form {
+  max-width: 460px;
+  margin: 0 auto;
+  box-shadow: 0 24px 60px rgba(31, 22, 80, 0.25);
+  animation: pm-form-in 0.45s ease both;
+}
+
+@keyframes pm-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Brand lockup: "Logo Placeholder" as a gradient wordmark */
+.forny-logo h3 {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: var(--pm-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.forny-form h4 {
+  font-weight: 700;
+  color: var(--forny-color-gray-900, #2c3e50);
+}
+
+/* Inputs */
+.forny-form .form-group {
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.forny-form .form-group:focus-within {
+  border-color: var(--pm-grad-start);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.forny-form .form-control {
+  background: transparent;
+}
+
+.forny-form .form-control:focus {
+  box-shadow: none;
+}
+
+/* Buttons */
+.forny-form .btn-primary {
+  background: var(--pm-gradient);
+  border: none;
+  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.35);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+}
+
+.forny-form .btn-primary:hover,
+.forny-form .btn-primary:focus {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(102, 126, 234, 0.42);
+}
+
+/* Alerts */
+.forny-form .alert {
+  border-radius: 12px;
+  border: none;
+}
+
+.forny-form .alert-error {
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.forny-form .alert-info {
+  background: rgba(102, 126, 234, 0.08);
+  color: #4a4f7a;
+}
+
+.forny-form .help-links a,
+.forny-form a {
+  color: var(--pm-grad-start);
+  font-weight: 600;
+}
+
+.forny-form a:hover {
+  color: var(--pm-grad-end);
+}
+
+@media (max-width: 576px) {
+  .forny-form {
+    padding: 1.75rem !important;
+    border-radius: 16px;
+  }
+}

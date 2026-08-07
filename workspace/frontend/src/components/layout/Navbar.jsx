@@ -61,12 +61,12 @@ export default function Navbar() {
         <Link
           to="/"
           onClick={close}
-          aria-label="Portfolio Manager — go to home"
+          aria-label="Investrix — go to home"
           className="flex shrink-0 items-center gap-2 rounded text-text-primary transition-colors hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Wallet className="h-5 w-5 shrink-0 text-accent" />
           <span className="hidden text-sm font-semibold tracking-wide sm:inline">
-            Portfolio Manager
+            Investrix
           </span>
         </Link>
 
