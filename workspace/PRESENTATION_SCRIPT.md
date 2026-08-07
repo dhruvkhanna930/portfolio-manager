@@ -495,6 +495,178 @@ these as pairs — the clicking must lead the sentence by about a second.
 
 ---
 
+# Questions other teams will ask
+
+These are the ordinary technical questions students ask after a presentation —
+mostly to stay engaged and look participative. They're friendly. Keep the
+answers **short, specific and warm**, and don't turn a two-line question into a
+two-minute lecture.
+
+Whoever is nearest the mic takes it. Any of the six should be able to answer
+all of these.
+
+---
+
+**Q: "What's your tech stack?"**
+
+> React 18 with Vite on the front end — Tailwind for styling, React Query for
+> server state, Recharts plus TradingView's lightweight-charts for the
+> candlesticks.
+>
+> Backend is Flask with flask-smorest, SQLAlchemy for the ORM, and Marshmallow
+> schemas that give us validation and the OpenAPI docs from one definition.
+> Twenty-six service modules behind fifty-four endpoints.
+
+---
+
+**Q: "Which database are you using?"**
+
+> SQLite locally, and it's Postgres-ready — the connection string is just an
+> environment variable, and we use SQLAlchemy so nothing is dialect-specific.
+>
+> For a single-user app, SQLite is genuinely the right call. It's a file, it
+> needs no server, and cloning the repo plus one seed command gives you a
+> working database.
+
+---
+
+**Q: "Where do the live prices come from?"**
+
+> Two sources, split by asset type. **yfinance** for stocks — that's NSE and
+> BSE via the `.NS` and `.BO` suffixes — and **mfapi.in** for mutual fund NAVs,
+> which is free and AMFI-sourced.
+>
+> Bonds are manual entry, deliberately. There's no free live API for Indian
+> retail bond pricing, so rather than fake it we let the user set the price and
+> we timestamp it.
+
+---
+
+**Q: "Don't those APIs rate-limit you?"**
+
+> They would, which is why we don't call them per page load. When you first add
+> an asset we do **one** deep historical pull and cache every daily close in
+> our own table. After that, every chart and every period button reads from our
+> database.
+>
+> A background job refreshes prices on a schedule, and each call is wrapped in
+> retry with exponential backoff. If it still fails we serve the last cached
+> price and flag it `is_stale` rather than showing an error — a slightly old
+> number beats a broken page.
+
+---
+
+**Q: "Is there login? Can multiple people use it?"**
+
+> No, and that's deliberate rather than unfinished. It's scoped as a
+> single-user app, so there's no auth, no user table, no multi-tenancy.
+>
+> That freed up the whole budget for the analytics and the recommendation
+> engine, which is where we actually wanted to spend it.
+
+---
+
+**Q: "Does it work on mobile?"**
+
+> Yes — it's responsive. The nav collapses into a hamburger menu below the
+> large breakpoint, and the tables and charts reflow.
+>
+> We built it desktop-first though, because the analytics screens are dense by
+> nature. A correlation matrix on a phone is honest but not pleasant.
+
+---
+
+**Q: "Is it deployed anywhere?"**
+
+> It runs locally right now — there's a `SETUP.md` in the repo, and it's
+> genuinely four commands: create the venv, install requirements, run
+> `seed_demo.py`, start Flask and Vite.
+>
+> Nothing blocks deployment; we just prioritised building features over
+> hosting for a hackathon.
+
+---
+
+**Q: "What happens if the internet drops mid-demo?"**
+
+> Most of it keeps working, because prices and history are cached in our own
+> database. Charts, analytics, risk metrics, Monte Carlo — all local.
+>
+> What would break is live asset search, the AI Suggestions call to Groq, and
+> fetching a brand-new stock we've never seen. Everything else is offline by
+> design.
+
+---
+
+**Q: "Can it handle US stocks, or other markets?"**
+
+> At the data layer, yes — yfinance covers them and the schema has a currency
+> column. What we haven't built is FX conversion, so a dollar holding wouldn't
+> total correctly against an INR portfolio.
+>
+> We scoped it India-first on purpose and treated multi-currency as an edge
+> case rather than half-building it.
+
+---
+
+**Q: "Did you write tests?"**
+
+> Eighty-four, and they're concentrated on the calculation layer — XIRR,
+> weighted average buy price, allocation, the recommendation blending, the
+> model input shapes.
+>
+> That's deliberate: the maths is the highest-risk code in the app. A UI bug is
+> visible. A silently wrong XIRR is not.
+
+---
+
+**Q: "Why did you switch from random forest to LSTM and GRU?"**
+
+> A random forest sees each day as an independent row in a spreadsheet —
+> today's P/E, today's volume, today's price. It has no idea that yesterday
+> came before today.
+>
+> But price movement is nothing *but* sequence. "Rose steadily for ten days"
+> and "crashed then recovered to the same price" produce an identical row and
+> mean opposite things — a model with no memory literally can't tell them
+> apart.
+>
+> LSTM and GRU are built for exactly that: they read a sequence one step at a
+> time and carry a memory forward. So it wasn't a tuning problem — the forest
+> was just the wrong *shape* of model for the data.
+
+---
+
+**Q: "How does the recommendation actually decide what to show?"**
+
+> Four separate scores out of 100 per stock, blended at fixed weights — fit is
+> 40%, momentum 20%, news sentiment 15%, and the neural network 25%.
+>
+> Fit is the big one, and what it means depends on which of three modes you
+> picked: **similar** to what you already own, **complementary** to what you're
+> missing, or matched to a **risk profile** if you're brand new and own
+> nothing.
+>
+> And every card shows its own breakdown on screen, so you can see exactly why
+> a stock ranked where it did — and disagree with it.
+
+---
+
+**Q: "What was the hardest part?"**
+
+> Two things, and neither was writing the features.
+>
+> Getting the neural networks to run at all — TensorFlow has no wheels for
+> Python 3.14 and modern Keras won't load these checkpoints, so we read the
+> weights out of the file and reimplemented the forward passes in NumPy.
+>
+> And finding bugs that don't crash. Our recommender was suggesting an IT stock
+> as a "diversifier" for a portfolio that was already 45% IT — because our seed
+> data said "IT" and the market API said "Technology". Nothing errored. We only
+> caught it by reading the output against a real portfolio.
+
+---
+
 # If you're running behind
 
 Cut in this order. Never cut Tanishq's MVP framing or Daksh's honest
