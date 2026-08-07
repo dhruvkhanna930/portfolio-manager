@@ -499,6 +499,18 @@
                                 <div class="col-lg-12">
                                     <div class="card">
                                         <div class="card-body">
+                                            <h4 class="card-title mb-4">Portfolio Performance (Last 6 Months)</h4>
+                                            <div id="portfolio-performance-chart"></div>
+                                            <p class="text-muted mb-0 mt-2" id="portfolio-performance-hint">Estimated daily portfolio value based on current holdings.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> <!-- end row-->
+
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="card">
+                                        <div class="card-body">
                                             <h4 class="card-title mb-4">Your Holdings
                                             <button 
                                                 style="float: right; margin-bottom: 10px; background-color: #50a5f1; border-color: #50a5f1;" 
@@ -1137,6 +1149,64 @@
 
             getUpdatedValues();
             var callUpdateFunction = setInterval(getUpdatedValues(), 1000 * 60 * 5); // where X is your every X minutes
+        </script>
+
+        <!-- Script for rendering the Portfolio Performance chart -->
+        <script>
+            function loadPortfolioPerformance() {
+                $.ajax({
+                    type: "GET",
+                    url: "/portfolio-performance",
+                    dataType: "json",
+                    success: function(data) {
+                        if (data.hasOwnProperty('Error')) {
+                            $('#portfolio-performance-hint').text('Could not load performance data.');
+                            return;
+                        }
+                        if (!data['Dates'] || data['Dates'].length === 0) {
+                            $('#portfolio-performance-hint').text('Add holdings to see your portfolio performance over time.');
+                            return;
+                        }
+                        var options = {
+                            chart: {
+                                type: 'area',
+                                height: 320,
+                                toolbar: { show: false }
+                            },
+                            series: [{
+                                name: 'Portfolio Value',
+                                data: data['Values']
+                            }],
+                            xaxis: {
+                                categories: data['Dates'],
+                                type: 'category',
+                                labels: { show: false }
+                            },
+                            yaxis: {
+                                labels: {
+                                    formatter: function(val) { return '$' + Number(val).toLocaleString(); }
+                                }
+                            },
+                            colors: ['#50a5f1'],
+                            stroke: { curve: 'smooth', width: 2 },
+                            fill: {
+                                type: 'gradient',
+                                gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05 }
+                            },
+                            dataLabels: { enabled: false },
+                            tooltip: {
+                                x: { format: 'dd MMM yyyy' },
+                                y: { formatter: function(val) { return '$' + Number(val).toLocaleString(undefined, { minimumFractionDigits: 2 }); } }
+                            }
+                        };
+                        var chart = new ApexCharts(document.getElementById("portfolio-performance-chart"), options);
+                        chart.render();
+                    }
+                });
+            }
+            $(document).ready(function() {
+                loadPortfolioPerformance();
+            });
         </script>
 
         <!-- Script for showing the company's basic financial information once view details button is clicked -->

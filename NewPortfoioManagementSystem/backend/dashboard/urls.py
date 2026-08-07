@@ -24,4 +24,5 @@ urlpatterns = [
     path('watchlist-view', views.view_watchlist, name="watchlist-view"),
     path('watchlist-remove', views.remove_from_watchlist, name="watchlist-remove"),
     path('export', views.export_data, name="export-data"),
+    path('portfolio-performance', views.get_portfolio_performance, name="portfolio-performance"),
 ]

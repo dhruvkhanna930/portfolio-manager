@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import requests
+import pandas as pd
 from datetime import datetime, timedelta
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
@@ -798,3 +799,43 @@ def export_data(request):
       writer.writerow([h.company_name, h.company_symbol, h.sector, h.number_of_shares, h.investment_amount, round(avg_cost, 2)])
 
   return response
+
+
+@login_required
+def get_portfolio_performance(request):
+  try:
+    portfolio = Portfolio.objects.get(user=request.user)
+    holdings = StockHolding.objects.filter(portfolio=portfolio)
+    if not holdings.exists():
+      return JsonResponse({"Dates": [], "Values": []})
+
+    symbols = [h.company_symbol for h in holdings]
+    shares = {h.company_symbol: h.number_of_shares for h in holdings}
+
+    hist = yf.download(symbols, period='6mo', interval='1d', progress=False, auto_adjust=True)
+    if hist.empty or 'Close' not in hist:
+      return JsonResponse({"Dates": [], "Values": []})
+
+    close = hist['Close']
+    dates = []
+    values = []
+
+    if isinstance(close, pd.DataFrame):
+      for idx, row in close.iterrows():
+        total = 0.0
+        for sym in symbols:
+          price = row.get(sym)
+          if price is not None and price == price:
+            total += float(price) * shares.get(sym, 0)
+        dates.append(idx.strftime('%Y-%m-%d'))
+        values.append(round(total, 2))
+    else:
+      for idx, price in close.items():
+        if price is None or price != price:
+          continue
+        dates.append(idx.strftime('%Y-%m-%d'))
+        values.append(round(float(price) * shares.get(symbols[0], 0), 2))
+
+    return JsonResponse({"Dates": dates, "Values": values})
+  except Exception as e:
+    return JsonResponse({"Error": str(e)})

@@ -2,6 +2,8 @@ from django.test import SimpleTestCase, TestCase
 from django.contrib.auth.models import User
 from unittest.mock import patch
 
+import pandas as pd
+
 from dashboard.models import Portfolio, StockHolding, WalletTransaction
 from dashboard.portfolio_summary import build_portfolio_summary
 
@@ -151,3 +153,74 @@ class ExportDataTests(TestCase):
         self.client.logout()
         response = self.client.get("/export")
         self.assertEqual(response.status_code, 302)
+
+
+class PortfolioPerformanceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="perfuser", password="pass12345")
+        self.client.login(username="perfuser", password="pass12345")
+        self.portfolio = Portfolio.objects.create(user=self.user)
+        StockHolding.objects.create(
+            portfolio=self.portfolio,
+            company_symbol="AAPL",
+            company_name="Apple Inc.",
+            sector="Technology",
+            buying_value=[[10.0, 2]],
+        )
+        StockHolding.objects.create(
+            portfolio=self.portfolio,
+            company_symbol="MSFT",
+            company_name="Microsoft Corp.",
+            sector="Technology",
+            buying_value=[[10.0, 3]],
+        )
+
+    def test_empty_portfolio_returns_empty_series(self):
+        user2 = User.objects.create_user(username="perfuser2", password="pass12345")
+        self.client.logout()
+        self.client.login(username="perfuser2", password="pass12345")
+        Portfolio.objects.create(user=user2)
+        response = self.client.get("/portfolio-performance")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["Dates"], [])
+        self.assertEqual(response.json()["Values"], [])
+
+    def test_requires_login(self):
+        self.client.logout()
+        response = self.client.get("/portfolio-performance")
+        self.assertEqual(response.status_code, 302)
+
+    def test_multi_symbol_series(self):
+        idx = pd.to_datetime(["2026-01-01", "2026-01-02"])
+        hist = pd.DataFrame(
+            {("Close", "AAPL"): [100.0, 110.0], ("Close", "MSFT"): [50.0, 55.0]},
+            index=idx,
+        )
+        hist.columns = pd.MultiIndex.from_tuples(hist.columns)
+        with patch("dashboard.views.yf.download", return_value=hist):
+            response = self.client.get("/portfolio-performance")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["Dates"], ["2026-01-01", "2026-01-02"])
+        # AAPL: 2 shares, MSFT: 3 shares -> 350 then 385
+        self.assertEqual(data["Values"], [350.0, 385.0])
+
+    def test_single_symbol_series(self):
+        user2 = User.objects.create_user(username="perfuser3", password="pass12345")
+        self.client.logout()
+        self.client.login(username="perfuser3", password="pass12345")
+        portfolio2 = Portfolio.objects.create(user=user2)
+        StockHolding.objects.create(
+            portfolio=portfolio2,
+            company_symbol="AAPL",
+            company_name="Apple Inc.",
+            sector="Technology",
+            buying_value=[[10.0, 2]],
+        )
+        idx = pd.to_datetime(["2026-01-01", "2026-01-02"])
+        hist = pd.DataFrame({"Close": [100.0, 110.0]}, index=idx)
+        with patch("dashboard.views.yf.download", return_value=hist):
+            response = self.client.get("/portfolio-performance")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["Values"], [200.0, 220.0])
